@@ -1,2 +1,3 @@
-def test_placeholder():
+# tests/test_smoke.py
+def test_smoke():
     assert True
