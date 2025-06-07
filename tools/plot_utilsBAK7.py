@@ -102,12 +102,12 @@ def plot_2d_trajectories(trajs_um, constants, save_path=None, show=True, max_spe
     fig.tight_layout()
     if save_path:
         fig.savefig(save_path)
-        try:
-            import subprocess
-            subprocess.run(["open", save_path])
-        except Exception as e:
-            print(f"[WARN] open失敗: {e}")
-    plt.show()
+    plt.show(block=False)
+    try:
+        mgr = plt.get_current_fig_manager()
+        mgr.window.attributes('-topmost', 1)
+    except Exception:
+        pass
 
 def plot_3d_movie_trajectories(trajs: np.ndarray, vectors: np.ndarray, constants: dict,
                                 save_path=None, show=True, format="mp4"):
@@ -143,12 +143,22 @@ def plot_3d_movie_trajectories(trajs: np.ndarray, vectors: np.ndarray, constants
                                    arrow_length_ratio=0.7, linewidth=2, color=colors[i % len(colors)])
         return quivers
     ani = FuncAnimation(fig, update, frames=num_frames, interval=100, blit=False)
-    if save_path:
-        fig.savefig(save_path)
-        try:
-            import subprocess
-            subprocess.run(["open", save_path])
-        except Exception as e:
-            print(f"[WARN] open失敗: {e}")
-    plt.show()
+    if not save_path:
+        dtstr = datetime.now().strftime("%Y%m%d_%H%M%S")
+        ext = "gif" if format == "gif" else "mp4"
+        save_path = get_figure_save_path(f"movie_{dtstr}.{ext}")
+    try:
+        if format == "gif":
+            ani.save(save_path, writer="pillow", fps=10)
+        else:
+            ani.save(save_path, fps=10)
+        print(f"[INFO] 動画を保存しました: {save_path}")
+    except Exception as e:
+        print(f"[ERROR] 保存失敗: {e}")
+    plt.show(block=False)
+    try:
+        mgr = plt.get_current_fig_manager()
+        mgr.window.attributes('-topmost', 1)
+    except Exception:
+        pass
     plt.close(fig)

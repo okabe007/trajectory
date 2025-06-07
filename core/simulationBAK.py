@@ -22,77 +22,6 @@ from core.simulation_core import SpotIO, _spot_status_check
 from tools.io_checks import IO_check_spot
 from tools.io_checks import IO_check_drop
 from tools.io_checks import IO_check_cube
-# def IO_check_spot(base_position: np.ndarray, temp_position: np.ndarray, constants: dict, IO_status: str) -> str:
-#     radius   = constants['radius']
-#     bottom_z = constants['spot_bottom_height']
-#     bottom_R = constants['spot_bottom_r']  # ← 小文字に注意
-#     limit    = constants['limit']
-
-#     z_tip = temp_position[2]
-#     r_tip = LA.norm(temp_position)
-#     xy_dist = np.sqrt(temp_position[0]**2 + temp_position[1]**2)
-
-#     if z_tip > bottom_z + limit:
-#         if r_tip > radius + limit:
-#             return "sphere_out"
-
-
-
-
-
-
-
-#     INSIDE = "inside"
-#     BORDER = "border"
-#     SPHERE_OUT = "sphere_out"
-#     BOTTOM_OUT = "bottom_out"
-#     SPOT_EDGE_OUT = "spot_edge_out"
-#     ON_POLYGON = "ON_POLYGON"
-#     SPOT_BOTTOM = "spot_bottom"
-
-
-#     radius = constants.get("spot_r", constants.get("radius", 0.0))
-#     bottom_z = constants.get("spot_bottom_height", 0.0)
-#     bottom_r = constants.get("spot_bottom_r", 0.0)
-#     limit = constants.get("limit", 1e-9)
-
-#     z_tip = temp_position[2]
-#     r_tip = np.linalg.norm(temp_position)
-#     xy_dist = np.linalg.norm(temp_position[:2])
-
-#     if z_tip > bottom_z + limit:
-#         if r_tip > radius + limit:
-#             return SpotIO.SPHERE_OUT
-#         if r_tip < radius - limit:
-#             return SpotIO.ON_POLYGON if stick_status > 0 else IOStatus.INSIDE
-#         return SpotIO.BORDER
-
-#     if z_tip < bottom_z - limit:
-#         denom = temp_position[2] - base_position[2]
-#         if abs(denom) < limit:
-#             return SpotIO.SPHERE_OUT
-#         t = (bottom_z - base_position[2]) / denom
-#         if t < 0 or t > 1:
-#             return SpotIO.SPHERE_OUT
-#         intersect_xy = base_position[:2] + t * (temp_position[:2] - base_position[:2])
-#         dist_xy = np.linalg.norm(intersect_xy)
-#         if dist_xy < bottom_r + limit:
-#             return SpotIO.BOTTOM_OUT
-#         return SpotIO.SPHERE_OUT
-
-#     if bottom_z - limit < z_tip < bottom_z + limit:
-#         if xy_dist > bottom_r + limit:
-#             return SpotIO.SPOT_EDGE_OUT
-#         if abs(xy_dist - bottom_r) <= limit:
-#             return SpotIO.BORDER
-#         if xy_dist < bottom_r - limit:
-#             if prev_stat in (SpotIO.SPOT_EDGE_OUT, SpotIO.ON_POLYGON) or stick_status > 0:
-#                 return SpotIO.ON_POLYGON
-#             return SpotIO.SPOT_BOTTOM
-
-#     return IOStatus.INSIDE
-
-
 def _io_check_spot(
     base_position: np.ndarray,
     temp_position: np.ndarray,
@@ -167,8 +96,6 @@ def _io_check_spot(
         status = _spot_status_check(pos, candidate, constants, prev_stat, stick_status)
 
     return candidate, status, bottom_hit
-
-
 def _line_sphere_intersection(p0: np.ndarray, p1: np.ndarray, r: float) -> tuple[np.ndarray, float]:
     """Return intersection point and remaining distance after hitting the sphere."""
     d = p1 - p0
@@ -196,13 +123,9 @@ def _line_sphere_intersection(p0: np.ndarray, p1: np.ndarray, r: float) -> tuple
     intersection = p0 + d_unit * t
     remaining = max(d_norm - t, 0.0)
     return intersection, remaining
-
-
 def _reflect(vec: np.ndarray, normal: np.ndarray) -> np.ndarray:
     """Reflect ``vec`` on plane defined by ``normal``."""
     return vec - 2.0 * np.dot(vec, normal) * normal
-
-
 def ON_POLYGON(
     current_pos: np.ndarray,
     polygon_idx: int,
@@ -234,8 +157,6 @@ def ON_POLYGON(
         )
 
     return next_vector
-
-
 def detach_edge_mode(
     current_pos: np.ndarray,
     spot_r: float,
@@ -273,8 +194,6 @@ def detach_edge_mode(
     global_vec /= np.linalg.norm(global_vec) + 1e-12
 
     return global_vec
-
-
 class SpermSimulation:
     def __init__(self, constants):
         self.constants = constants
@@ -419,110 +338,110 @@ class SpermSimulation:
     from tools.geometry import DropShape, CubeShape, SpotShape  # cerosは内部処理で対応
     from tools.io_checks import IO_check_cube, IO_check_drop, IO_check_spot  # 必要に応じて
 
-    def run(self, constants, result_dir, save_name, save_flag):
-        """
-        全てのshape（cube, drop, spot, ceros）に対応した精子運動シミュレーション実行関数。
-        self.trajectory および self.vectors を更新する。
-        """
-        self.constants = constants
-        shape = constants["shape"]
-        step_len = constants["step_length"]
-        vsl = constants["vsl"]
-        hz = constants["sample_rate_hz"]
-        deviation = constants["deviation"]
-        seed = int(constants.get("seed_number", 0))
+    # def run(self, constants, result_dir, save_name, save_flag):
+    #     """
+    #     全てのshape（cube, drop, spot, ceros）に対応した精子運動シミュレーション実行関数。
+    #     self.trajectory および self.vectors を更新する。
+    #     """
+    #     self.constants = constants
+    #     shape = constants["shape"]
+    #     step_len = constants["step_length"]
+    #     vsl = constants["vsl"]
+    #     hz = constants["sample_rate_hz"]
+    #     deviation = constants["deviation"]
+    #     seed = int(constants.get("seed_number", 0))
 
-        self.number_of_sperm = int(constants["sperm_conc"] * constants["vol"] * 1e-3)
-        self.number_of_steps = int(constants["sim_min"] * hz * 60)
+    #     self.number_of_sperm = int(constants["sperm_conc"] * constants["vol"] * 1e-3)
+    #     self.number_of_steps = int(constants["sim_min"] * hz * 60)
 
-        rng = np.random.default_rng(seed)
+    #     rng = np.random.default_rng(seed)
 
-        # === 初期位置と形状オブジェクト ===
-        if shape == "drop":
-            shape_obj = DropShape(constants)
-        elif shape == "cube":
-            shape_obj = CubeShape(constants)
-        elif shape == "spot":
-            shape_obj = SpotShape(constants)
-        elif shape == "ceros":
-            shape_obj = None
-        else:
-            raise ValueError(f"Unknown shape: {shape}")
+    #     # === 初期位置と形状オブジェクト ===
+    #     if shape == "drop":
+    #         shape_obj = DropShape(constants)
+    #     elif shape == "cube":
+    #         shape_obj = CubeShape(constants)
+    #     elif shape == "spot":
+    #         shape_obj = SpotShape(constants)
+    #     elif shape == "ceros":
+    #         shape_obj = None
+    #     else:
+    #         raise ValueError(f"Unknown shape: {shape}")
 
-        if shape == "ceros":
-            self.initial_position = np.full((self.number_of_sperm, 3), np.inf)
-        else:
-            self.initial_position = np.zeros((self.number_of_sperm, 3))
-            for j in range(self.number_of_sperm):
-                self.initial_position[j] = shape_obj.initial_position()
+    #     if shape == "ceros":
+    #         self.initial_position = np.full((self.number_of_sperm, 3), np.inf)
+    #     else:
+    #         self.initial_position = np.zeros((self.number_of_sperm, 3))
+    #         for j in range(self.number_of_sperm):
+    #             self.initial_position[j] = shape_obj.initial_position()
 
-        # === 初期ベクトル（ランダム方向） ===
-        self.initial_vectors = np.zeros((self.number_of_sperm, 3))
-        for j in range(self.number_of_sperm):
-            vec = rng.normal(0, 1, 3)
-            vec /= np.linalg.norm(vec) + 1e-12
-            self.initial_vectors[j] = vec
+    #     # === 初期ベクトル（ランダム方向） ===
+    #     self.initial_vectors = np.zeros((self.number_of_sperm, 3))
+    #     for j in range(self.number_of_sperm):
+    #         vec = rng.normal(0, 1, 3)
+    #         vec /= np.linalg.norm(vec) + 1e-12
+    #         self.initial_vectors[j] = vec
 
-        # === 配列初期化 ===
-        self.trajectory = np.zeros((self.number_of_sperm, self.number_of_steps, 3))
-        self.vectors = np.zeros((self.number_of_sperm, self.number_of_steps, 3))
+    #     # === 配列初期化 ===
+    #     self.trajectory = np.zeros((self.number_of_sperm, self.number_of_steps, 3))
+    #     self.vectors = np.zeros((self.number_of_sperm, self.number_of_steps, 3))
 
-        # === メインループ ===
-        for j in range(self.number_of_sperm):
-            pos = self.initial_position[j].copy()
-            vec = self.initial_vectors[j].copy()
-            stick_status = 0
-            prev_stat = "inside"
+    #     # === メインループ ===
+    #     for j in range(self.number_of_sperm):
+    #         pos = self.initial_position[j].copy()
+    #         vec = self.initial_vectors[j].copy()
+    #         stick_status = 0
+    #         prev_stat = "inside"
 
-            self.trajectory[j, 0] = pos
-            self.vectors[j, 0] = vec
+    #         self.trajectory[j, 0] = pos
+    #         self.vectors[j, 0] = vec
 
-            for i in range(1, self.number_of_steps):
-                vec += rng.normal(0, deviation, 3)
-                vec /= np.linalg.norm(vec) + 1e-12
-                candidate = pos + vec * step_len
+    #         for i in range(1, self.number_of_steps):
+    #             vec += rng.normal(0, deviation, 3)
+    #             vec /= np.linalg.norm(vec) + 1e-12
+    #             candidate = pos + vec * step_len
 
-                # === IO 判定 ===
-                if shape == "cube":
-                    status, _ = IO_check_cube(candidate, constants)
-                elif shape == "drop":
-                    status, stick_status = IO_check_drop(candidate, stick_status, constants)
-                elif shape == "spot":
-                    status = IO_check_spot(pos, candidate, constants, prev_stat, stick_status)
-                    prev_stat = status
-                elif shape == "ceros":
-                    status = IOStatus.INSIDE
-                else:
-                    raise ValueError(f"Unknown shape: {shape}")
+    #             # === IO 判定 ===
+    #             if shape == "cube":
+    #                 status, _ = IO_check_cube(candidate, constants)
+    #             elif shape == "drop":
+    #                 status, stick_status = IO_check_drop(candidate, stick_status, constants)
+    #             elif shape == "spot":
+    #                 status = IO_check_spot(pos, candidate, constants, prev_stat, stick_status)
+    #                 prev_stat = status
+    #             elif shape == "ceros":
+    #                 status = IOStatus.INSIDE
+    #             else:
+    #                 raise ValueError(f"Unknown shape: {shape}")
 
-                # === ステータスごとの挙動 ===
-                if status in [IOStatus.INSIDE, IOStatus.INSIDE]:
-                    pos = candidate
-                elif status == IOStatus.ON_POLYGON:
-                    candidate, vec, stick_status, status = self.drop_polygon_move(pos, vec, stick_status, self.constants)
+    #             # === ステータスごとの挙動 ===
+    #             if status in [IOStatus.INSIDE, IOStatus.INSIDE]:
+    #                 pos = candidate
+    #             elif status == IOStatus.ON_POLYGON:
+    #                 candidate, vec, stick_status, status = self.drop_polygon_move(pos, vec, stick_status, self.constants)
 
 
-                elif status in [IOStatus.REFLECT, SpotIO.REFLECT]:
-                    vec *= -1
+    #             elif status in [IOStatus.REFLECT, SpotIO.REFLECT]:
+    #                 vec *= -1
 
-                elif status in [IOStatus.STICK, SpotIO.STICK, SpotIO.ON_POLYGON]:
-                    stick_status = int(constants["surface_time"] * hz)
+    #             elif status in [IOStatus.STICK, SpotIO.STICK, SpotIO.ON_POLYGON]:
+    #                 stick_status = int(* hz)
 
-                elif status in [IOStatus.BORDER, SpotIO.BORDER, SpotIO.BOTTOM_OUT]:
-                    pass  # 境界付近で停止
-                elif status in [IOStatus.BORDER, IOStatus.BOTTOM_OUT, IOStatus.SPOT_EDGE_OUT]:
-                    pass  # 停止や跳ね返り処理なし（その場維持）
+    #             elif status in [IOStatus.BORDER, SpotIO.BORDER, SpotIO.BOTTOM_OUT]:
+    #                 pass  # 境界付近で停止
+    #             elif status in [IOStatus.BORDER, IOStatus.BOTTOM_OUT, IOStatus.SPOT_EDGE_OUT]:
+    #                 pass  # 停止や跳ね返り処理なし（その場維持）
 
-                elif status in [IOStatus.INSIDE, IOStatus.ON_POLYGON]:
-                    pass  # 正常なため何もしなくて良い
-                    print(f"[WARNING] Unexpected status: {status}")
+    #             elif status in [IOStatus.INSIDE, IOStatus.ON_POLYGON]:
+    #                 pass  # 正常なため何もしなくて良い
+    #                 print(f"[WARNING] Unexpected status: {status}")
 
-                self.trajectory[j, i] = pos
-                self.vectors[j, i] = vec
+    #             self.trajectory[j, i] = pos
+    #             self.vectors[j, i] = vec
 
-        print("[DEBUG] 初期位置数:", len(self.initial_position))
-        print("[DEBUG] 精子数:", self.number_of_sperm)
-        self.trajectories = self.trajectory  # 外部用に公開
+    #     print("[DEBUG] 初期位置数:", len(self.initial_position))
+    #     print("[DEBUG] 精子数:", self.number_of_sperm)
+    #     self.trajectories = self.trajectory  # 外部用に公開
 
 
     import matplotlib.pyplot as plt
@@ -687,6 +606,7 @@ class SpermSimulation:
         print(f"[INFO] 軌跡画像を保存しました: {save_path}")
 
     def plot_movie_trajectories(self, save_path=None, fps: int = 5):
+        print('[WARNING] plot_movie_trajectories() が呼ばれてしまった')
         """Animate recorded trajectories and save to a movie file."""
         import numpy as np
         from matplotlib.animation import FuncAnimation
@@ -725,11 +645,6 @@ class SpermSimulation:
                 ln.set_3d_properties(trajectories[i, : frame + 1, 2])
             return lines
 
-        ani = FuncAnimation(fig, update, frames=n_frames, init_func=init, blit=False, interval=200)
-        if save_path:
-            ani.save(save_path, writer='ffmpeg', fps=fps)
-        else:
-            plt.show()
         anim = FuncAnimation(fig, update, init_func=init, frames=n_frames, interval=1000 / fps, blit=False)
 
         base_dir = os.path.dirname(__file__)

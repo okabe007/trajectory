@@ -1,3 +1,4 @@
+from tools.plot_utils import get_figure_save_path
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import patches
@@ -220,13 +221,13 @@ def plot_trajectories(self, max_sperm=5, save_path=None):
     import datetime
     dtstr = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
     base_dir = os.path.dirname(__file__)
-    figs_dir = os.path.join(base_dir, 'figs_&_movies')
+    figs_dir = os.path.join(base_dir, 'figs_and_movies')
     os.makedirs(figs_dir, exist_ok=True)
     if save_path is None:
-        save_path = os.path.join(figs_dir, f'trajectory_{dtstr}.png')
+        save_path = get_figure_save_path(filename)
     else:
         filename = os.path.basename(save_path)
-        save_path = os.path.join(figs_dir, filename)
+        save_path = get_figure_save_path(filename)
     plt.savefig(save_path)
     plt.close()
     print(f'[INFO] 軌跡画像を保存しました: {save_path}')
@@ -261,14 +262,14 @@ def plot_movie_trajectories(self, save_path=None, fps: int=5):
         return lines
     anim = FuncAnimation(fig, update, init_func=init, frames=n_frames, interval=1000 / fps, blit=False)
     base_dir = os.path.dirname(__file__)
-    mov_dir = os.path.join(base_dir, 'figs_&_movies')
+    mov_dir = os.path.join(base_dir, 'figs_and_movies')
     os.makedirs(mov_dir, exist_ok=True)
     if save_path is None:
         dtstr = datetime.now().strftime('%Y%m%d_%H%M%S')
-        save_path = os.path.join(mov_dir, f'trajectory_{dtstr}.mp4')
+        save_path = get_figure_save_path(filename)
     else:
         filename = os.path.basename(save_path)
-        save_path = os.path.join(mov_dir, filename)
+        save_path = get_figure_save_path(filename)
     try:
         anim.save(save_path, writer='ffmpeg', fps=fps)
     except Exception as e:
@@ -469,7 +470,7 @@ class SpermSimulation:
     def plot_trajectories(self, save_path=None):
         """
         self.trajectory（N×T×3配列）に含まれる全精子軌跡を2Dで描画・保存。
-        save_path: Noneなら trajectory_reboot/figs_&_movies に自動保存
+        save_path: Noneなら trajectory_reboot/figs_and_movies に自動保存
         """
         import matplotlib.pyplot as plt
         import matplotlib.patches as patches
@@ -544,9 +545,9 @@ class SpermSimulation:
         if save_path is None:
             dtstr = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
             base_dir = os.path.dirname(__file__)
-            figs_dir = os.path.join(base_dir, '..', 'figs_&_movies')
+            figs_dir = os.path.join(base_dir, '..', 'figs_and_movies')
             os.makedirs(figs_dir, exist_ok=True)
-            save_path = os.path.join(figs_dir, f'trajectory_{dtstr}.png')
+            save_path = get_figure_save_path(filename)
         else:
             save_dir = os.path.dirname(save_path)
             os.makedirs(save_dir, exist_ok=True)
@@ -601,9 +602,9 @@ class SpermSimulation:
         if save_path is None:
             dtstr = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
             base_dir = os.path.dirname(__file__)
-            mov_dir = os.path.join(base_dir, '..', 'figs_&_movies')
+            mov_dir = os.path.join(base_dir, '..', 'figs_and_movies')
             os.makedirs(mov_dir, exist_ok=True)
-            save_path = os.path.join(mov_dir, f'trajectory_{dtstr}.mp4')
+            save_path = get_figure_save_path(filename)
         else:
             save_dir = os.path.dirname(save_path)
             os.makedirs(save_dir, exist_ok=True)

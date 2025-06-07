@@ -1,5 +1,5 @@
 
-# 完全統合版 plot_utils.py（Masaru仕様準拠：figもmovieもfigs_&_moviesに保存）
+# 統合版 plot_utils.py（2D・3D可視化およびムービー保存対応）
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -52,63 +52,6 @@ def draw_egg_3d(ax, egg_pos, radius, *, color="yellow", alpha=0.6):
     z = radius * np.cos(v) + egg_pos[2]
     ax.plot_surface(x, y, z, color=color, alpha=alpha, edgecolor="none")
 
-def plot_2d_trajectories(trajs_um, constants, save_path=None, show=True, max_sperm=None):
-    x_min, x_max = constants["x_min"], constants["x_max"]
-    y_min, y_max = constants["y_min"], constants["y_max"]
-    z_min, z_max = constants["z_min"], constants["z_max"]
-    trajs_mm = trajs_um.astype(float) / 1000.0
-    fig, axs = plt.subplots(1, 3, figsize=(12, 4))
-    shape = constants.get('shape', 'cube').lower()
-    if shape == "drop":
-        r = constants["drop_r"]
-        axs[0].add_patch(Circle((0.0, 0.0), r, color="pink", alpha=0.3))
-        axs[1].add_patch(Circle((0.0, 0.0), r, color="pink", alpha=0.3))
-        axs[2].add_patch(Circle((0.0, 0.0), r, color="pink", alpha=0.3))
-    elif shape == "spot":
-        R = constants["spot_r"]
-        b_r = constants["spot_bottom_r"]
-        b_h = constants["spot_bottom_height"]
-        x_vals = np.linspace(-b_r, b_r, 200)
-        z_vals = np.sqrt(np.clip(R**2 - x_vals**2, 0.0, None))
-        axs[0].add_patch(Circle((0.0, 0.0), b_r, color="pink", alpha=0.3))
-        axs[1].fill_between(x_vals, b_h, z_vals, color="pink", alpha=0.3)
-        axs[2].fill_between(x_vals, b_h, z_vals, color="pink", alpha=0.3)
-    egg_center = constants["egg_center"]
-    egg_r = constants["gamete_r"]
-    axs[0].add_patch(Circle((egg_center[0], egg_center[1]), egg_r, facecolor="yellow", alpha=0.6, edgecolor="gray"))
-    axs[1].add_patch(Circle((egg_center[0], egg_center[2]), egg_r, facecolor="yellow", alpha=0.6, edgecolor="gray"))
-    axs[2].add_patch(Circle((egg_center[1], egg_center[2]), egg_r, facecolor="yellow", alpha=0.6, edgecolor="gray"))
-    if max_sperm is None:
-        max_sperm = trajs_mm.shape[0]
-    for s in range(min(max_sperm, trajs_mm.shape[0])):
-        axs[0].plot(trajs_mm[s, :, 0], trajs_mm[s, :, 1], linewidth=0.6)
-        axs[1].plot(trajs_mm[s, :, 0], trajs_mm[s, :, 2], linewidth=0.6)
-        axs[2].plot(trajs_mm[s, :, 1], trajs_mm[s, :, 2], linewidth=0.6)
-    for ax, title, xlab, ylab, xlim, ylim in zip(
-        axs,
-        ["XY (mm)", "XZ (mm)", "YZ (mm)"],
-        ["X (mm)", "X (mm)", "Y (mm)"],
-        ["Y (mm)", "Z (mm)", "Z (mm)"],
-        [(x_min, x_max), (x_min, x_max), (y_min, y_max)],
-        [(y_min, y_max), (z_min, z_max), (z_min, z_max)]
-    ):
-        ax.set_title(title)
-        ax.set_xlim(xlim)
-        ax.set_ylim(ylim)
-        ax.set_xlabel(xlab)
-        ax.set_ylabel(ylab)
-        ax.set_aspect('equal')
-        ax.grid(True, linestyle='--', linewidth=0.5, alpha=0.5)
-    fig.tight_layout()
-    if save_path:
-        fig.savefig(save_path)
-        try:
-            import subprocess
-            subprocess.run(["open", save_path])
-        except Exception as e:
-            print(f"[WARN] open失敗: {e}")
-    plt.show()
-
 def plot_3d_movie_trajectories(trajs: np.ndarray, vectors: np.ndarray, constants: dict,
                                 save_path=None, show=True, format="mp4"):
     fig = plt.figure()
@@ -124,16 +67,20 @@ def plot_3d_movie_trajectories(trajs: np.ndarray, vectors: np.ndarray, constants
     ax.set_ylabel("Y")
     ax.set_zlabel("Z")
     ax.set_title("3D Sperm Vectors (Fixed Length)")
+
     draw_medium(ax, constants)
     draw_egg_3d(ax, constants["egg_center"], constants.get("gamete_r", 0.05))
+
     num_sperm, num_frames = trajs.shape[0], trajs.shape[1]
     full_colors = plt.cm.tab20(np.linspace(0, 1, 20))
     colors = [full_colors[i] for i in range(20) if i != 3]
+
     quivers = [
         ax.quiver(0, 0, 0, 0, 0, 0, length=0.1, normalize=True,
                   arrow_length_ratio=0.9, linewidth=2.5, color=colors[i % len(colors)])
         for i in range(num_sperm)
     ]
+
     def update(frame):
         for i in range(num_sperm):
             x, y, z = trajs[i, frame]
@@ -142,13 +89,23 @@ def plot_3d_movie_trajectories(trajs: np.ndarray, vectors: np.ndarray, constants
             quivers[i] = ax.quiver(x, y, z, u, v, w, length=0.1, normalize=True,
                                    arrow_length_ratio=0.7, linewidth=2, color=colors[i % len(colors)])
         return quivers
+
     ani = FuncAnimation(fig, update, frames=num_frames, interval=100, blit=False)
-    if save_path:
-        fig.savefig(save_path)
-        try:
-            import subprocess
-            subprocess.run(["open", save_path])
-        except Exception as e:
-            print(f"[WARN] open失敗: {e}")
-    plt.show()
+
+    if not save_path:
+        dtstr = datetime.now().strftime("%Y%m%d_%H%M%S")
+        ext = "gif" if format == "gif" else "mp4"
+        save_path = get_figure_save_path(f"movie_{dtstr}.{ext}")
+
+    try:
+        if format == "gif":
+            ani.save(save_path, writer="pillow", fps=10)
+        else:
+            ani.save(save_path, fps=10)
+        print(f"[INFO] 動画を保存しました: {save_path}")
+    except Exception as e:
+        print(f"[ERROR] 保存失敗: {e}")
+
+    if show:
+        plt.show()
     plt.close(fig)

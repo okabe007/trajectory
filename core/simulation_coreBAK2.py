@@ -1,3 +1,4 @@
+from tools.plot_utils import get_figure_save_path
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import patches
@@ -140,96 +141,90 @@ def plot_trajectories(self, max_sperm=5, save_path=None):
     """
     インスタンスのself.trajectory（リスト of N×3 配列）を可視化
     max_sperm: 表示する精子軌跡の最大本数
-    save_path: Noneなら画面表示のみ、パス指定で保存
+    save_path: Noneなら figs_&_movies に日付ファイル名で保存
     """
     import matplotlib.pyplot as plt
     import numpy as np
     import os
+    import datetime
+    from matplotlib import patches
+    from tools.plot_utils import get_figure_save_path
+
     trajectories = np.array(self.trajectory)
     constants = self.constants
+
     if trajectories is None or len(trajectories) == 0:
         print('[WARNING] 軌跡データがありません。run()実行後にplot_trajectoriesしてください。')
         return
-    all_mins = [constants['x_min'], constants['y_min'], constants['z_min']]
-    all_maxs = [constants['x_max'], constants['y_max'], constants['z_max']]
-    global_min = min(all_mins)
-    global_max = max(all_maxs)
+
+    # 軸範囲（mm単位）を constants から取得（派生変数）
+    x_min, x_max = constants['x_min'], constants['x_max']
+    y_min, y_max = constants['y_min'], constants['y_max']
+    z_min, z_max = constants['z_min'], constants['z_max']
+
     fig, axes = plt.subplots(1, 3, figsize=(10, 4))
     ax_xy, ax_xz, ax_yz = axes
     colors = ['r', 'g', 'b', 'c', 'm', 'y', 'k']
     n_sperm = min(len(trajectories), max_sperm)
+
+    # 卵子の描画
     egg_x, egg_y, egg_z = constants["egg_center"]
+    egg_r = constants.get("gamete_r", 0.05)
     for ax, (x, y) in zip(axes, [(egg_x, egg_y), (egg_x, egg_z), (egg_y, egg_z)]):
-        ax.add_patch(patches.Circle((x, y), radius=constants.get('gamete_r', 0), facecolor='yellow', alpha=0.8, ec='gray', linewidth=0.5))
+        ax.add_patch(
+            patches.Circle((x, y), radius=egg_r, facecolor='yellow', alpha=0.8, ec='gray', linewidth=0.5)
+        )
+
+    # XY
     for i in range(n_sperm):
         ax_xy.plot(trajectories[i][:, 0], trajectories[i][:, 1], color=colors[i % len(colors)])
-    ax_xy.set_xlim(global_min, global_max)
-    ax_xy.set_ylim(global_min, global_max)
+    ax_xy.set_xlim(x_min, x_max)
+    ax_xy.set_ylim(y_min, y_max)
     ax_xy.set_aspect('equal')
     ax_xy.set_xlabel('X')
     ax_xy.set_ylabel('Y')
     ax_xy.set_title('XY projection')
+
+    # XZ
     for i in range(n_sperm):
         ax_xz.plot(trajectories[i][:, 0], trajectories[i][:, 2], color=colors[i % len(colors)])
-    ax_xz.set_xlim(global_min, global_max)
-    ax_xz.set_ylim(global_min, global_max)
+    ax_xz.set_xlim(x_min, x_max)
+    ax_xz.set_ylim(z_min, z_max)
     ax_xz.set_aspect('equal')
     ax_xz.set_xlabel('X')
     ax_xz.set_ylabel('Z')
     ax_xz.set_title('XZ projection')
+
+    # YZ
     for i in range(n_sperm):
         ax_yz.plot(trajectories[i][:, 1], trajectories[i][:, 2], color=colors[i % len(colors)])
-    ax_yz.set_xlim(global_min, global_max)
-    ax_yz.set_ylim(global_min, global_max)
+    ax_yz.set_xlim(y_min, y_max)
+    ax_yz.set_ylim(z_min, z_max)
     ax_yz.set_aspect('equal')
     ax_yz.set_xlabel('Y')
     ax_yz.set_ylabel('Z')
     ax_yz.set_title('YZ projection')
+
+    # タイトルや注釈
     param_summary = ', '.join((f'{k}={constants.get(k)}' for k in ['shape', 'vol', 'sperm_conc', 'vsl', 'deviation']))
     param_summary2 = ', '.join((f'{k}={constants.get(k)}' for k in ['surface_time', 'egg_localization', 'gamete_r', 'sim_min', 'sample_rate_hz', 'sim_repeat']))
     fig.suptitle(f'{param_summary}\n{param_summary2}', fontsize=12)
-    plt.tight_layout(rect=[0, 0, 1, 0.95])
-    if save_path is not None:
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        plt.savefig(save_path)
-        plt.close()
-    else:
-        plt.show()
-    '\n        シミュレーションで記録したself.trajectory（リスト of N×3 配列）を可視化します。\n        max_sperm: 表示する精子軌跡の最大本数\n        save_path: Noneならこのスクリプトと同じ階層のFigs_and_Moviesに自動保存\n        '
-    trajectories = self.trajectory
-    if not trajectories or len(trajectories) == 0:
-        print('[WARNING] 軌跡データがありません。run()実行後にplot_trajectoriesしてください。')
-        return
-    n_plot = min(max_sperm, len(trajectories))
-    perc_shown = n_plot / len(trajectories) * 100
-    fig, axes = plt.subplots(1, 3, figsize=(10, 4))
-    ax_labels = [('X', 'Y'), ('X', 'Z'), ('Y', 'Z')]
-    idxs = [(0, 1), (0, 2), (1, 2)]
-    for ax, (label_x, label_y), (i, j) in zip(axes, ax_labels, idxs):
-        for t in trajectories[:n_plot]:
-            ax.plot(t[:, i], t[:, j], alpha=0.7)
-        ax.set_xlabel(label_x)
-        ax.set_ylabel(label_y)
-        ax.set_aspect('equal')
-        ax.set_title(f'{label_x}{label_y} projection')
-    param_summary = ', '.join((f'{k}={self.constants.get(k)}' for k in ['shape', 'vol', 'sperm_conc', 'vsl', 'deviation']))
-    param_summary2 = ', '.join((f'{k}={self.constants.get(k)}' for k in ['surface_time', 'egg_localization', 'gamete_r', 'sim_min', 'sample_rate_hz', 'sim_repeat']))
-    fig.suptitle(f'{param_summary}\n{param_summary2}', fontsize=12)
-    fig.text(0.99, 0.01, f'※ 表示は全体の{perc_shown:.1f}%（{n_plot}本/{len(trajectories)}本）', ha='right', fontsize=10, color='gray')
+    fig.text(0.99, 0.01, f'※ 表示は全体の{n_sperm}/{len(trajectories)}本', ha='right', fontsize=10, color='gray')
     fig.tight_layout(rect=[0, 0.03, 1, 0.92])
-    import datetime
-    dtstr = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-    base_dir = os.path.dirname(__file__)
-    figs_dir = os.path.join(base_dir, 'figs_&_movies')
-    os.makedirs(figs_dir, exist_ok=True)
+
+    # 保存処理
     if save_path is None:
-        save_path = os.path.join(figs_dir, f'trajectory_{dtstr}.png')
+        dtstr = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"trajectory_{dtstr}.png"
+        save_path = get_figure_save_path(filename)
     else:
         filename = os.path.basename(save_path)
-        save_path = os.path.join(figs_dir, filename)
+        save_path = get_figure_save_path(filename)
+
     plt.savefig(save_path)
     plt.close()
     print(f'[INFO] 軌跡画像を保存しました: {save_path}')
+
 def plot_movie_trajectories(self, save_path=None, fps: int=5):
     """Animate recorded trajectories and save to a movie file."""
     import numpy as np
@@ -261,14 +256,14 @@ def plot_movie_trajectories(self, save_path=None, fps: int=5):
         return lines
     anim = FuncAnimation(fig, update, init_func=init, frames=n_frames, interval=1000 / fps, blit=False)
     base_dir = os.path.dirname(__file__)
-    mov_dir = os.path.join(base_dir, 'figs_&_movies')
+    mov_dir = os.path.join(base_dir, 'figs_and_movies')
     os.makedirs(mov_dir, exist_ok=True)
     if save_path is None:
         dtstr = datetime.now().strftime('%Y%m%d_%H%M%S')
-        save_path = os.path.join(mov_dir, f'trajectory_{dtstr}.mp4')
+        save_path = get_figure_save_path(filename)
     else:
         filename = os.path.basename(save_path)
-        save_path = os.path.join(mov_dir, filename)
+        save_path = get_figure_save_path(filename)
     try:
         anim.save(save_path, writer='ffmpeg', fps=fps)
     except Exception as e:
@@ -469,7 +464,7 @@ class SpermSimulation:
     def plot_trajectories(self, save_path=None):
         """
         self.trajectory（N×T×3配列）に含まれる全精子軌跡を2Dで描画・保存。
-        save_path: Noneなら trajectory_reboot/figs_&_movies に自動保存
+        save_path: Noneなら trajectory_reboot/figs_and_movies に自動保存
         """
         import matplotlib.pyplot as plt
         import matplotlib.patches as patches
@@ -544,9 +539,9 @@ class SpermSimulation:
         if save_path is None:
             dtstr = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
             base_dir = os.path.dirname(__file__)
-            figs_dir = os.path.join(base_dir, '..', 'figs_&_movies')
+            figs_dir = os.path.join(base_dir, '..', 'figs_and_movies')
             os.makedirs(figs_dir, exist_ok=True)
-            save_path = os.path.join(figs_dir, f'trajectory_{dtstr}.png')
+            save_path = get_figure_save_path(filename)
         else:
             save_dir = os.path.dirname(save_path)
             os.makedirs(save_dir, exist_ok=True)
@@ -601,9 +596,9 @@ class SpermSimulation:
         if save_path is None:
             dtstr = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
             base_dir = os.path.dirname(__file__)
-            mov_dir = os.path.join(base_dir, '..', 'figs_&_movies')
+            mov_dir = os.path.join(base_dir, '..', 'figs_and_movies')
             os.makedirs(mov_dir, exist_ok=True)
-            save_path = os.path.join(mov_dir, f'trajectory_{dtstr}.mp4')
+            save_path = get_figure_save_path(filename)
         else:
             save_dir = os.path.dirname(save_path)
             os.makedirs(save_dir, exist_ok=True)

@@ -4,35 +4,41 @@ from typing import Tuple
 from tools.enums import IOStatus
 import numpy as np
 
-def IO_check_drop(
-    temp_position: np.ndarray,
-    stick_status: float,
-    constants: dict
-    ) -> Tuple["IOStatus", float]:
-    radius = constants['drop_r']
-    limit = constants['limit']
-    distance = LA.norm(temp_position)
+import numpy as np
+from tools.enums import IOStatus
 
-    if stick_status > 0: #polugon mode
-        if distance < radius - limit:#内側
-            stick_status = max(0, stick_status - 1)
-            if stick_status == 0: # 浮き上がり
-                return IOStatus.END_POLYGON, 0
-            else:# まだ吸着続行
-                return IOStatus.ON_POLYGON, new_stick_status
-        else:# polygonモードで外に出た。
-            #曲げ操作
-            return IOStatus.ON_POLYGON, stick_status
+def IO_check_drop(candidate: np.ndarray, stick_status: int, constants: dict,
+                  prev_pos: np.ndarray = None, depth: int = 0, max_depth: int = 5) -> tuple:
+    """
+    drop形状におけるIO判定：
+    - 外：||candidate|| > drop_r + limit
+    - 中：||candidate|| < drop_r - limit → stick_status -= 1
+    - 遷移：その間 → 1.2倍して再判定（再帰呼び出し）
+    """
+    drop_r = constants["drop_r"]
+    limit = constants.get("limit", 1e-9)  # fallback default
+    r = np.linalg.norm(candidate)
 
-    # ② 吸着していない（stick_status == 0）場合
-    else:
-        if distance > radius + limit:
-            # dropの外に出た → 吸着を開始
-            new_stick_status = constants["surface_time"] * constants["sample_rate_hz"]
-            return IOStatus.ON_POLYGON, new_stick_status
-        else:
-            # 中にとどまっている or 境界 → 自由運動継続
-            return IOStatus.INSIDE, 0
+    # 完全に外側
+    if r > drop_r + limit:
+        return IOStatus.OUTSIDE, stick_status
+
+    # 完全に内側（→ stick_status を減らす）
+    if r < drop_r - limit:
+        new_stick_status = max(0, stick_status - 1)
+        return IOStatus.INSIDE, new_stick_status
+
+    # 中間ゾーン（前の点との差で進行方向を延長して再判定）
+    if prev_pos is not None and depth < max_depth:
+        direction = candidate - prev_pos
+        new_candidate = prev_pos + 1.2 * direction
+        return IO_check_drop(new_candidate, stick_status, constants,
+                             prev_pos=prev_pos, depth=depth + 1, max_depth=max_depth)
+
+    # 再帰制限 or prev_posなし → POLYGON扱いで粘着継続
+    return IOStatus.ON_POLYGON, stick_status
+
+
 
 def IO_check_cube(temp_position, constants):
     """
