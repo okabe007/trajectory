@@ -1,116 +1,66 @@
-diff --git a/core/simulation.py b/core/simulation.py
-index 595130bb0ca02b342a5f437d6d5af345ad8e1e15..e6a76dcd17df40bdf3c476b6846bf8d37538022e 100644
---- a/core/simulation.py
-+++ b/core/simulation.py
-@@ -567,52 +567,52 @@ class SpermSimulation:
-         idxs = [(0, 1), (0, 2), (1, 2)]
+diff --git a/entry.py b/entry.py
+index a94fae099e220b9161986cb75cb5c4a1958e55e3..470c12ae4060430bb9c92a1ec677af337ef510ed 100644
+--- a/entry.py
++++ b/entry.py
+@@ -1,57 +1,58 @@
+ import os
+ import sys
  
-         for ax, (label_x, label_y), (i, j) in zip(axes, ax_labels, idxs):
-             for t in trajectories[:n_plot]:
-                 ax.plot(t[:, i], t[:, j], alpha=0.7)
-             ax.set_xlabel(label_x)
-             ax.set_ylabel(label_y)
-             ax.set_aspect('equal')
-             ax.set_title(f"{label_x}{label_y} projection")
+ # プロジェクトルート（trajectory_reboot）を取得
+ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
  
-         # suptitleにパラメータ2行分
-         param_summary = ', '.join(f"{k}={self.constants.get(k)}" for k in ["shape", "vol", "sperm_conc", "vsl", "deviation"])
-         param_summary2 = ', '.join(f"{k}={self.constants.get(k)}" for k in ["surface_time", "egg_localization", "gamete_r", "sim_min", "sample_rate_hz", "sim_repeat"])
-         fig.suptitle(f"{param_summary}\n{param_summary2}", fontsize=12)
+ # パスに追加（重複追加を防ぐ）
+ if ROOT_DIR not in sys.path:
+     sys.path.insert(0, ROOT_DIR)
  
-         # 本数注釈
-         fig.text(0.99, 0.01, f"※ 表示は全体の{perc_shown:.1f}%（{n_plot}本/{len(trajectories)}本）", ha='right', fontsize=10, color="gray")
+ from tkinter import Tk
+-from spermsim.initialization import SimApp, load_config
+-from core.simulation_core import SpermSimulation  # ←← これに変更
++from spermsim.initialization import SimApp
++from tools.ini_handler import load_config
++from core.simulation_core import SpermSimulation
  
-         fig.tight_layout(rect=[0, 0.03, 1, 0.92])
+ REQUIRED_KEYS = [
+     "drop_r", "step_length", "number_of_sperm",
+     "x_min", "x_max", "y_min", "y_max", "z_min", "z_max",
+     "egg_center", "limit"
+ ]
  
-         # --- 保存先パスをスクリプトの場所基準で作る ---
-         import datetime
-         dtstr = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+ def check_config_validity(constants: dict):
+     missing = [k for k in REQUIRED_KEYS if k not in constants]
+     if missing:
+         raise ValueError(
+             f"[ERROR] sperm_config.ini に以下の派生変数が含まれていません:\n{missing}\n"
+             "→ GUIで保存（[保存して終了] ボタン）を完了してください。"
+         )
  
-         # このスクリプトがあるディレクトリを基準にする
--        base_dir = os.path.dirname(__file__)
--        figs_dir = os.path.join(base_dir, "figs_and_movies")
-+        root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-+        figs_dir = os.path.join(root_dir, "figure_and_movies")
-         os.makedirs(figs_dir, exist_ok=True)
+ def main():
+     # 1. GUI 起動
+     print("[ENTRY] GUIを起動します...")
+     root = Tk()
+     app = SimApp(root)
+     root.mainloop()  # GUIが閉じられるまで待機
  
-         if save_path is None:
-             # 自動で日付入りファイル名
-             save_path = os.path.join(figs_dir, f"trajectory_{dtstr}.png")
-         else:
-             # ファイル名だけ渡された場合もFigs_and_Moviesに入れる
-             filename = os.path.basename(save_path)
-             save_path = os.path.join(figs_dir, filename)
+     # 2. .ini 読み込み
+     config_path = "sperm_config.ini"
+     if not os.path.exists(config_path):
+         raise FileNotFoundError("[ERROR] sperm_config.ini が見つかりません。保存して終了を押しましたか？")
  
-         plt.savefig(save_path)
-         plt.close()
-         print(f"[INFO] 軌跡画像を保存しました: {save_path}")
+     constants = load_config()
+     check_config_validity(constants)
  
-     def plot_movie_trajectories(self, save_path=None, fps: int = 5):
-         print('[WARNING] plot_movie_trajectories() が呼ばれてしまった')
-         """Animate recorded trajectories and save to a movie file."""
-         import numpy as np
-         from matplotlib.animation import FuncAnimation
+     # 3. シミュレーション実行
+     result_dir = "results"
+     os.makedirs(result_dir, exist_ok=True)
  
-         trajectories = np.array(self.trajectory)
-         if trajectories is None or len(trajectories) == 0:
-             print("[WARNING] 軌跡データがありません。run()実行後にplot_movie_trajectoriesしてください。")
-             return None
+-    sim = SpermSimulation()
++    sim = SpermSimulation(constants)
+     sim.run(constants, result_dir, "simulation_result", save_flag=True)
+     print("[DEBUG] plot_trajectories() を呼び出します")
+     sim.plot_trajectories()
+     print("[DEBUG] plot_trajectories() を完了しました")
+     sim.plot_movie_trajectories()
+     print("[ENTRY] シミュレーション完了。")
  
-diff --git a/core/simulation.py b/core/simulation.py
-index 595130bb0ca02b342a5f437d6d5af345ad8e1e15..e6a76dcd17df40bdf3c476b6846bf8d37538022e 100644
---- a/core/simulation.py
-+++ b/core/simulation.py
-@@ -625,50 +625,50 @@ class SpermSimulation:
-         ax.set_xlim(const["x_min"], const["x_max"])
-         ax.set_ylim(const["y_min"], const["y_max"])
-         ax.set_zlim(const["z_min"], const["z_max"])
-         ax.set_box_aspect([
-             const["x_max"] - const["x_min"],
-             const["y_max"] - const["y_min"],
-             const["z_max"] - const["z_min"],
-         ])
- 
-         lines = [ax.plot([], [], [], lw=0.7)[0] for _ in range(n_sperm)]
- 
-         def init():
-             for ln in lines:
-                 ln.set_data([], [])
-                 ln.set_3d_properties([])
-             return lines
- 
-         def update(frame):
-             for i, ln in enumerate(lines):
-                 ln.set_data(trajectories[i, : frame + 1, 0], trajectories[i, : frame + 1, 1])
-                 ln.set_3d_properties(trajectories[i, : frame + 1, 2])
-             return lines
- 
-         anim = FuncAnimation(fig, update, init_func=init, frames=n_frames, interval=1000 / fps, blit=False)
- 
--        base_dir = os.path.dirname(__file__)
--        mov_dir = os.path.join(base_dir, "figs_and_movies")
-+        root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-+        mov_dir = os.path.join(root_dir, "figure_and_movies")
-         os.makedirs(mov_dir, exist_ok=True)
-         if save_path is None:
-             dtstr = datetime.now().strftime("%Y%m%d_%H%M%S")
-             save_path = os.path.join(mov_dir, f"trajectory_{dtstr}.mp4")
-         else:
-             filename = os.path.basename(save_path)
-             save_path = os.path.join(mov_dir, filename)
- 
-         try:
-             anim.save(save_path, writer="ffmpeg", fps=fps)
-         except Exception as e:
-             print(f"[WARN] ffmpeg保存失敗 ({e}) → pillow writerで再試行")
-             try:
-                 anim.save(save_path, writer="pillow", fps=fps)
-             except Exception as e2:
-                 print(f"[ERROR] pillow writerでも保存に失敗: {e2}")
-                 return None
- 
-         plt.close(fig)
-         print(f"[INFO] 動画を保存しました: {save_path}")
-         return save_path
- 
-         return np.array(traj), intersection_records
+ if __name__ == "__main__":
+     main()

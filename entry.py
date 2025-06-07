@@ -9,8 +9,9 @@ if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
 from tkinter import Tk
-from spermsim.initialization import SimApp, load_config
-from core.simulation_core import SpermSimulation  # ←← これに変更
+from spermsim.initialization import SimApp
+from tools.ini_handler import load_config
+from core.simulation_core import SpermSimulation
 
 REQUIRED_KEYS = [
     "drop_r", "step_length", "number_of_sperm",
@@ -45,7 +46,7 @@ def main():
     result_dir = "results"
     os.makedirs(result_dir, exist_ok=True)
 
-    sim = SpermSimulation()
+    sim = SpermSimulation(constants)
     sim.run(constants, result_dir, "simulation_result", save_flag=True)
     print("[DEBUG] plot_trajectories() を呼び出します")
     sim.plot_trajectories()
