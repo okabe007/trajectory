@@ -34,6 +34,11 @@ def main():
     app = SimApp(root)
     root.mainloop()  # GUIが閉じられるまで待機
 
+    # GUI内でシミュレーションが実行された場合はここで終了
+    if getattr(app, "simulation_ran", False):
+        print("[ENTRY] Simulation already executed from GUI. Exiting.")
+        return
+
     # 2. .ini 読み込み
     config_path = "sperm_config.ini"
     if not os.path.exists(config_path):
