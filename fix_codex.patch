@@ -1,39 +1,44 @@
-diff --git a/derived_constants.py b/derived_constants.py
-index 4c56f0ee4cde928715a5e60059df3696eb4da98f..8f7701065843da4dbc4e1facd56a36c9d1c1a3b9 100644
---- a/derived_constants.py
-+++ b/derived_constants.py
-@@ -22,52 +22,52 @@ def calculate_derived_constants(raw_constants):
-     gamete_r_um = float(constants.get("gamete_r", 50.0))
-     gamete_r_mm = gamete_r_um / 1000.0
-     constants["gamete_r"] = gamete_r_mm
+diff --git a/spermsim/initialization.py b/spermsim/initialization.py
+index 26bc2083349634983893cdc4260fe40134b5156b..f4612279390bb4d7d97556db32685f22b5c8742d 100644
+--- a/spermsim/initialization.py
++++ b/spermsim/initialization.py
+@@ -122,51 +122,51 @@ def calculate_derived_constants(raw_constants):
+     if "spot_r" in constants:
+         r_raw = float(constants["spot_r"])
+         constants["spot_r"] = r_raw / 1000.0 if r_raw > 10 else r_raw
+     if "spot_bottom_r" in constants:
+         br_raw = float(constants["spot_bottom_r"])
+         constants["spot_bottom_r"] = br_raw / 1000.0 if br_raw > 10 else br_raw
+     if "spot_bottom_height" in constants:
+         bh_raw = float(constants["spot_bottom_height"])
+         constants["spot_bottom_height"] = bh_raw / 1000.0 if bh_raw > 10 else bh_raw
  
-     # drop_r の自動計算（球体と仮定）
-     if shape == "drop" and "drop_r" not in raw_constants:
-         r_mm = ((3.0 * vol) / (4.0 * math.pi)) ** (1.0 / 3.0)
-         constants["drop_r"] = r_mm
- 
-     # spot_r 等の逆算（球冠）
-     if shape == "spot" and "spot_r" not in raw_constants:
+     if shape == "spot":
          angle_deg = float(constants.get("spot_angle", 0.0))
          spot_r_mm, bottom_r_mm, bottom_h_mm = calc_spot_geometry(vol, angle_deg)
          constants["spot_r"] = spot_r_mm
          constants["spot_bottom_r"] = bottom_r_mm
          constants["spot_bottom_height"] = bottom_h_mm
  
-     # edge の計算（cube）
      if shape == "cube":
          edge = vol ** (1.0 / 3.0)
          constants["edge"] = edge
  
-     # step_length = vsl * rate / 1000
-     vsl_um_s = float(constants.get("vsl", 0.0))
+     vsl_um_s = float(constants.get("vsl", 0.0))  # GUI value in µm/s
      sample_rate_hz = float(constants.get("sample_rate_hz", 0.0))
--    step_length_mm = (vsl_um_s * sample_rate_hz) / 1000.0
--    constants["step_length"] = step_length_mm
-+    step_length = (vsl_um_s * sample_rate_hz) / 1000.0
-+    constants["step_length"] = step_length
+     vsl_mm_s = vsl_um_s / 1000.0
+     constants["vsl"] = vsl_mm_s
+-    constants["step_length"] = vsl_mm_s / sample_rate_hz if sample_rate_hz else 0.0
++    constants["step_length"] = (vsl_um_s * sample_rate_hz) / 1000.0
  
-     # x/y/z 軸範囲設定
+     if "vol" in constants and "sperm_conc" in constants:
+         try:
+             vol_ul = float(constants["vol"])
+             conc = float(constants["sperm_conc"])
+             constants["number_of_sperm"] = int(conc * vol_ul / 1000)
+         except Exception:
+             pass
+ 
      if shape == "cube":
          half = constants["edge"] / 2
          constants.update(
@@ -46,14 +51,7 @@ index 4c56f0ee4cde928715a5e60059df3696eb4da98f..8f7701065843da4dbc4e1facd56a36c9
          constants.update(
              x_min=-r, x_max=r,
              y_min=-r, y_max=r,
-             z_min=0.0, z_max=2 * r
+             z_min=-r, z_max=r
          )
      elif shape == "spot":
          R = constants["spot_r"]
-         b_r = constants["spot_bottom_r"]
-         constants.update(
-             x_min=-b_r, x_max=b_r,
-             y_min=-b_r, y_max=b_r,
-             z_min=0.0,  z_max=R
-         )
-     else:

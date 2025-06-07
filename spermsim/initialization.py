@@ -144,7 +144,7 @@ def calculate_derived_constants(raw_constants):
     sample_rate_hz = float(constants.get("sample_rate_hz", 0.0))
     vsl_mm_s = vsl_um_s / 1000.0
     constants["vsl"] = vsl_mm_s
-    constants["step_length"] = vsl_mm_s / sample_rate_hz if sample_rate_hz else 0.0
+    constants["step_length"] = (vsl_um_s * sample_rate_hz) / 1000.0
 
     if "vol" in constants and "sperm_conc" in constants:
         try:
