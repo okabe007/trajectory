@@ -1,57 +1,78 @@
-diff --git a/spermsim/main.py b/spermsim/main.py
-index 5755a7264f133c91a9baa21c64c2fe3f0caf85f1..9c6d59928bb893ca37ef68754221a9c4a98afc24 100644
---- a/spermsim/main.py
-+++ b/spermsim/main.py
-@@ -101,51 +101,51 @@ def get_program_version():
-     try:
-         file_name = os.path.basename(__file__)
-     except NameError:
-         file_name = "interactive"
-     version = f"{file_name}"
-     return version
+diff --git a/tools/plot_utils.py b/tools/plot_utils.py
+index 817568beaeb50620f6b4e20eef6264fcb3a5e9a7..5eab3e2c6966cf7a644106a8c0dafe92f4baecac 100644
+--- a/tools/plot_utils.py
++++ b/tools/plot_utils.py
+@@ -87,68 +87,71 @@ def plot_2d_trajectories(trajs_um, constants, save_path=None, show=True, max_spe
+     for ax, title, xlab, ylab, xlim, ylim in zip(
+         axs,
+         ["XY (mm)", "XZ (mm)", "YZ (mm)"],
+         ["X (mm)", "X (mm)", "Y (mm)"],
+         ["Y (mm)", "Z (mm)", "Z (mm)"],
+         [(x_min, x_max), (x_min, x_max), (y_min, y_max)],
+         [(y_min, y_max), (z_min, z_max), (z_min, z_max)]
+     ):
+         ax.set_title(title)
+         ax.set_xlim(xlim)
+         ax.set_ylim(ylim)
+         ax.set_xlabel(xlab)
+         ax.set_ylabel(ylab)
+         ax.set_aspect('equal')
+         ax.grid(True, linestyle='--', linewidth=0.5, alpha=0.5)
+     fig.tight_layout()
+     if save_path:
+         fig.savefig(save_path)
+         try:
+             import subprocess
+             subprocess.run(["open", save_path])
+         except Exception as e:
+             print(f"[WARN] open失敗: {e}")
+     plt.show()
  
- def get_constants_from_gui(selected_data, shape, volume, sperm_conc):
-     """
-     GUI から受け取った選択データと shape, volume, sperm_conc を元に、
-     シミュレーション定数をまとめた辞書を作成して返す。
-     """
-     constants = {}
-     constants['shape'] = shape.lower()
-     constants['volume'] = float(volume)
-     constants['sperm_conc'] = int(sperm_conc)
-     constants['spot_angle']        = float(selected_data.get('spot_angle', 60))
-     constants['vsl']               = float(selected_data.get('vsl', 0.13))
-     constants['deviation']         = float(selected_data.get('deviation', 0.04))
-     constants['sample_rate_hz']     = float(selected_data.get('sample_rate_hz', 2))
-     constants['sim_min']           = float(selected_data.get('sim_min', 10))
-     constants['gamete_r']          = float(selected_data.get('gamete_r', 0.15))
-     constants['surface_time']      = float(selected_data.get('surface_time', 0))
-     constants['stick_sec']         = int(selected_data.get('stick_sec', 2))
-     constants['stick_steps'] = constants['stick_sec'] * constants['sample_rate_hz']
--    constants['step_length'] = constants['vsl'] / constants['sample_rate_hz']
-+    constants['step_length'] = (constants['vsl'] * constants['sample_rate_hz']) / 1000
-     constants['limit'] = 1e-10
-     egg_localization = selected_data.get('egg_localization', 'bottom_center').strip()
-     constants['egg_localization'] = egg_localization
-     constants['initial_direction']    = selected_data.get('initial_direction', 'random').strip()
-     constants['initial_stick'] = int(selected_data.get('initial_stick', 0))
-     constants['seed_number']          = selected_data.get('seed_number', None)
-     constants['N_repeat']             = int(selected_data.get('n_repeat', 1))
-     outputs = selected_data.get('outputs', [])
-     constants['draw_trajectory'] = 'yes' if 'graph' in outputs else 'no'
-     constants['make_movie']      = 'yes' if 'movie' in outputs else 'no'
-     if constants['seed_number'] and str(constants['seed_number']).lower() != IOStatus.NONE:
-         np.random.seed(int(constants['seed_number']))
-     constants['analysis_type'] = selected_data.get('analysis_type', "simulation")
- 
-     # ★ここで派生値をtools/derived_constants.pyで一元計算
-     from tools.derived_constants import calculate_derived_constants
-     constants = calculate_derived_constants(constants)
- 
-     return constants
- 
- 
- def placement_of_eggs(constants):
-     """
-     shape, egg_localization に応じた卵子の配置座標などを返す。
-     """
+-def plot_3d_movie_trajectories(trajs: np.ndarray, vectors: np.ndarray, constants: dict,
++def plot_3d_movie_trajectories(trajs: np.ndarray, constants: dict,
+                                 save_path=None, show=True, format="mp4"):
+     fig = plt.figure()
+     ax = fig.add_subplot(111, projection='3d')
+     xlim = constants["x_min"], constants["x_max"]
+     ylim = constants["y_min"], constants["y_max"]
+     zlim = constants["z_min"], constants["z_max"]
+     ax.set_xlim(*xlim)
+     ax.set_ylim(*ylim)
+     ax.set_zlim(*zlim)
+     ax.set_box_aspect([xlim[1]-xlim[0], ylim[1]-ylim[0], zlim[1]-zlim[0]])
+     ax.set_xlabel("X")
+     ax.set_ylabel("Y")
+     ax.set_zlabel("Z")
+     ax.set_title("3D Sperm Vectors (Fixed Length)")
+     draw_medium(ax, constants)
+     draw_egg_3d(ax, constants["egg_center"], constants.get("gamete_r", 0.05))
+     num_sperm, num_frames = trajs.shape[0], trajs.shape[1]
+     full_colors = plt.cm.tab20(np.linspace(0, 1, 20))
+     colors = [full_colors[i] for i in range(20) if i != 3]
+     quivers = [
+         ax.quiver(0, 0, 0, 0, 0, 0, length=0.1, normalize=True,
+                   arrow_length_ratio=0.9, linewidth=2.5, color=colors[i % len(colors)])
+         for i in range(num_sperm)
+     ]
+     def update(frame):
+         for i in range(num_sperm):
+             x, y, z = trajs[i, frame]
+-            u, v, w = vectors[i, frame]
++            if frame < num_frames - 1:
++                u, v, w = trajs[i, frame + 1] - trajs[i, frame]
++            else:
++                u, v, w = trajs[i, frame] - trajs[i, frame - 1]
+             quivers[i].remove()
+             quivers[i] = ax.quiver(x, y, z, u, v, w, length=0.1, normalize=True,
+                                    arrow_length_ratio=0.7, linewidth=2, color=colors[i % len(colors)])
+         return quivers
+     ani = FuncAnimation(fig, update, frames=num_frames, interval=100, blit=False)
+     if save_path:
+         fig.savefig(save_path)
+         try:
+             import subprocess
+             subprocess.run(["open", save_path])
+         except Exception as e:
+             print(f"[WARN] open失敗: {e}")
+     plt.show()
+     plt.close(fig)

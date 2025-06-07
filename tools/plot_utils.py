@@ -109,7 +109,7 @@ def plot_2d_trajectories(trajs_um, constants, save_path=None, show=True, max_spe
             print(f"[WARN] open失敗: {e}")
     plt.show()
 
-def plot_3d_movie_trajectories(trajs: np.ndarray, vectors: np.ndarray, constants: dict,
+def plot_3d_movie_trajectories(trajs: np.ndarray, constants: dict,
                                 save_path=None, show=True, format="mp4"):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
@@ -137,7 +137,10 @@ def plot_3d_movie_trajectories(trajs: np.ndarray, vectors: np.ndarray, constants
     def update(frame):
         for i in range(num_sperm):
             x, y, z = trajs[i, frame]
-            u, v, w = vectors[i, frame]
+            if frame < num_frames - 1:
+                u, v, w = trajs[i, frame + 1] - trajs[i, frame]
+            else:
+                u, v, w = trajs[i, frame] - trajs[i, frame - 1]
             quivers[i].remove()
             quivers[i] = ax.quiver(x, y, z, u, v, w, length=0.1, normalize=True,
                                    arrow_length_ratio=0.7, linewidth=2, color=colors[i % len(colors)])
