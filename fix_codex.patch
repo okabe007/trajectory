@@ -1,57 +1,172 @@
-diff --git a/entry.py b/entry.py
-index 470c12ae4060430bb9c92a1ec677af337ef510ed..9f224dbf3828f73eda23936efc28893398eb7f80 100644
---- a/entry.py
-+++ b/entry.py
-@@ -12,47 +12,52 @@ from tkinter import Tk
- from spermsim.initialization import SimApp
- from tools.ini_handler import load_config
- from core.simulation_core import SpermSimulation
+diff --git a/spermsim/initialization.py b/spermsim/initialization.py
+index 844b27bfe46cc86e6e5ff8a13e080d55339a0bab..26bc2083349634983893cdc4260fe40134b5156b 100644
+--- a/spermsim/initialization.py
++++ b/spermsim/initialization.py
+@@ -236,50 +236,51 @@ def calc_spot_geometry(volume_ul: float, angle_deg: float) -> tuple[float, float
+     while cap_volume(high) < vol_um3:
+         high *= 2.0
+     for _ in range(60):
+         mid = (low + high) / 2.0
+         if cap_volume(mid) < vol_um3:
+             low = mid
+         else:
+             high = mid
+     R_um = (low + high) / 2.0
+     bottom_r_um = R_um * math.sin(angle_rad)
+     bottom_height_um = R_um * math.cos(angle_rad)
+     return R_um / 1000.0, bottom_r_um / 1000.0, bottom_height_um / 1000.0
+ # ---------------------------------------------------------------------------
+ # Tkinter GUI クラス
+ # ---------------------------------------------------------------------------
  
- REQUIRED_KEYS = [
-     "drop_r", "step_length", "number_of_sperm",
-     "x_min", "x_max", "y_min", "y_max", "z_min", "z_max",
-     "egg_center", "limit"
- ]
+ class SimApp:
+     def __init__(self, root: tk.Tk):
+         self.root = root
+         self.root.title("Sperm Simulation GUI")
+         self.root.geometry("780x900")
+         self.config_data = load_config()  # .ini → dict
+         self.tk_vars: dict[str, tk.Variable] = {}  # Param ↔ Tk 変数
+         self.save_var = tk.BooleanVar()
+         self.save_var.set(True)
++        self.simulation_ran = False
+         # スクロールキャンバス
+         canvas = tk.Canvas(self.root)
+         vbar = ttk.Scrollbar(self.root, orient="vertical", command=canvas.yview)
  
- def check_config_validity(constants: dict):
-     missing = [k for k in REQUIRED_KEYS if k not in constants]
-     if missing:
-         raise ValueError(
-             f"[ERROR] sperm_config.ini に以下の派生変数が含まれていません:\n{missing}\n"
-             "→ GUIで保存（[保存して終了] ボタン）を完了してください。"
+         
+         self.scroll_frame = ttk.Frame(canvas)
+         canvas.create_window((0, 0), window=self.scroll_frame, anchor="nw")
+         canvas.configure(yscrollcommand=vbar.set)
+         self.scroll_frame.bind(
+             "<Configure>",
+             lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
          )
+         canvas.pack(side="left", fill="both", expand=True)
+         vbar.pack(side="right", fill="y")
  
- def main():
-     # 1. GUI 起動
-     print("[ENTRY] GUIを起動します...")
-     root = Tk()
-     app = SimApp(root)
-     root.mainloop()  # GUIが閉じられるまで待機
+         # 各ウィジェットを配置
+         self._create_widgets(self.scroll_frame)
+         self._restore_from_config()  # 値を復元
+         ttk.Checkbutton
+     # ---------------------------------------------------------------------
+     # ウィジェット生成
+     # ---------------------------------------------------------------------
+     def _create_widgets(self, parent: ttk.Frame) -> None:
+         # --- shape -------------------------------------------------------
+         self.tk_vars["shape"] = tk.StringVar()
+diff --git a/spermsim/initialization.py b/spermsim/initialization.py
+index 844b27bfe46cc86e6e5ff8a13e080d55339a0bab..26bc2083349634983893cdc4260fe40134b5156b 100644
+--- a/spermsim/initialization.py
++++ b/spermsim/initialization.py
+@@ -412,85 +413,95 @@ class SimApp:
+             ttk.Radiobutton(
+                 f_disp, text=v, variable=self.tk_vars["display_mode"], value=v
+             ).pack(side="left")
  
-+    # GUI内でシミュレーションが実行された場合はここで終了
-+    if getattr(app, "simulation_ran", False):
-+        print("[ENTRY] Simulation already executed from GUI. Exiting.")
-+        return
-+
-     # 2. .ini 読み込み
-     config_path = "sperm_config.ini"
-     if not os.path.exists(config_path):
-         raise FileNotFoundError("[ERROR] sperm_config.ini が見つかりません。保存して終了を押しましたか？")
+         # 最終確認のプリント文
+         print(f"最終修正後の表示モード: {self.tk_vars['display_mode'].get()}")
  
-     constants = load_config()
-     check_config_validity(constants)
+         # --- 実行ボタン --------------------------------------------------
+         ttk.Button(parent, text="Save settings and run simulation",
+                    command=self._on_save).pack(pady=20)
  
-     # 3. シミュレーション実行
-     result_dir = "results"
-     os.makedirs(result_dir, exist_ok=True)
+         self._update_spot_angle_state()
+     # ---------------------------------------------------------------------
+     # spot_angle の有効／無効
+     # ---------------------------------------------------------------------
+     def _update_spot_angle_state(self) -> None:
+         enable = (self.tk_vars["shape"].get() == "spot")
+         state = "normal" if enable else "disabled"
+         for rb in self.spot_angle_buttons:
+             rb.config(state=state)
+     # ---------------------------------------------------------------------
+     # 保存＆シミュレーション実行
+     # ---------------------------------------------------------------------
+     
+     def _on_save(self):
++        """Save settings and immediately run the simulation."""
+         import time
+         from tools.derived_constants import calculate_derived_constants
+         from tools.ini_handler import save_config
++        from core.simulation_core import SpermSimulation
  
-     sim = SpermSimulation(constants)
-     sim.run(constants, result_dir, "simulation_result", save_flag=True)
-     print("[DEBUG] plot_trajectories() を呼び出します")
-     sim.plot_trajectories()
-     print("[DEBUG] plot_trajectories() を完了しました")
-     sim.plot_movie_trajectories()
-     print("[ENTRY] シミュレーション完了。")
+-        # GUIフォームから値を取得
++        # GUI フォームから値を取得
+         constants = {key: var.get() for key, var in self.tk_vars.items()}
  
- if __name__ == "__main__":
-     main()
+-        # seed_number の補正（"None" の場合は時間から生成）
++        # seed_number の補正（"None" の場合は現在時刻から生成）
+         seed_raw = constants.get("seed_number", "None")
+         if seed_raw == "None":
+             constants["seed_number"] = int(time.time() * 1000) % (2**32)
+         else:
+             constants["seed_number"] = int(seed_raw)
+ 
+-        # 派生変数を追加
++        # 派生定数を計算
+         constants = calculate_derived_constants(constants)
+ 
+-        # 保存
++        # ini ファイルに保存
+         save_config(constants)
+         print("[SimApp] 設定を sperm_config.ini に保存しました")
+ 
+-    def _on_save_and_exit(self):
+-        self._on_save()
+-        self.destroy()
++        # --- シミュレーション実行 ---------------------------------------
++        sim = SpermSimulation(constants)
++        result_dir = "results"
++        os.makedirs(result_dir, exist_ok=True)
++        sim.run(constants, result_dir, "simulation_result", save_flag=True)
++        sim.plot_trajectories()
++        sim.plot_movie_trajectories()
+ 
+-        self.destroy()
+-        constants = {key: var.get() for key, var in self.tk_vars.items()}
+-        # seed_number は文字列"None"の場合現在時刻から生成する
+-        constants["seed_number"] = get_seed(constants.get("seed_number", "None"))
+-        constants = calculate_derived_constants(constants)
+-
+-        print("[デバッグ追加] 派生変数計算後のconstants:", constants)
++        # フラグを立てて終了（エントリーポイント側で再実行させない）
++        self.simulation_ran = True
++        try:
++            self.root.destroy()
++        except Exception:
++            pass
+ 
+-        # 設定を保存
+-        save_config(constants)
++    def _on_save_and_exit(self):
++        """Save, run the simulation and close the window."""
++        self._on_save()
++        try:
++            self.root.destroy()
++        except Exception:
++            pass
+ 
+     # ---------------------------------------------------------------------
+     # 起動時に .ini から各 Tk 変数を復元
+     # ---------------------------------------------------------------------
+     def _restore_from_config(self) -> None:
+         for k, var in self.tk_vars.items():
+             if k not in self.config_data:
+                 continue
+             v = self.config_data[k]
+             try:
+                 if isinstance(var, tk.DoubleVar):
+                     val = float(v)
+                     if k == "vsl":
+                         val *= 1000.0  # mm/s → µm/s
+                     elif k == "gamete_r":
+                         val *= 1000.0  # mm  → µm
+                     var.set(val)
+                 elif isinstance(var, tk.IntVar):
+                     var.set(int(float(v)))
+                 else:
+                     var.set(str(v))
+             except Exception:
+                 var.set(v)
+         # display_mode
+         modes = self.config_data.get("display_mode", [])

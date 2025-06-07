@@ -258,6 +258,7 @@ class SimApp:
         self.tk_vars: dict[str, tk.Variable] = {}  # Param ↔ Tk 変数
         self.save_var = tk.BooleanVar()
         self.save_var.set(True)
+        self.simulation_ran = False
         # スクロールキャンバス
         canvas = tk.Canvas(self.root)
         vbar = ttk.Scrollbar(self.root, orient="vertical", command=canvas.yview)
@@ -434,41 +435,51 @@ class SimApp:
     # ---------------------------------------------------------------------
     
     def _on_save(self):
+        """Save settings and immediately run the simulation."""
         import time
         from tools.derived_constants import calculate_derived_constants
         from tools.ini_handler import save_config
+        from core.simulation_core import SpermSimulation
 
-        # GUIフォームから値を取得
+        # GUI フォームから値を取得
         constants = {key: var.get() for key, var in self.tk_vars.items()}
 
-        # seed_number の補正（"None" の場合は時間から生成）
+        # seed_number の補正（"None" の場合は現在時刻から生成）
         seed_raw = constants.get("seed_number", "None")
         if seed_raw == "None":
             constants["seed_number"] = int(time.time() * 1000) % (2**32)
         else:
             constants["seed_number"] = int(seed_raw)
 
-        # 派生変数を追加
+        # 派生定数を計算
         constants = calculate_derived_constants(constants)
 
-        # 保存
+        # ini ファイルに保存
         save_config(constants)
         print("[SimApp] 設定を sperm_config.ini に保存しました")
 
+        # --- シミュレーション実行 ---------------------------------------
+        sim = SpermSimulation(constants)
+        result_dir = "results"
+        os.makedirs(result_dir, exist_ok=True)
+        sim.run(constants, result_dir, "simulation_result", save_flag=True)
+        sim.plot_trajectories()
+        sim.plot_movie_trajectories()
+
+        # フラグを立てて終了（エントリーポイント側で再実行させない）
+        self.simulation_ran = True
+        try:
+            self.root.destroy()
+        except Exception:
+            pass
+
     def _on_save_and_exit(self):
+        """Save, run the simulation and close the window."""
         self._on_save()
-        self.destroy()
-
-        self.destroy()
-        constants = {key: var.get() for key, var in self.tk_vars.items()}
-        # seed_number は文字列"None"の場合現在時刻から生成する
-        constants["seed_number"] = get_seed(constants.get("seed_number", "None"))
-        constants = calculate_derived_constants(constants)
-
-        print("[デバッグ追加] 派生変数計算後のconstants:", constants)
-
-        # 設定を保存
-        save_config(constants)
+        try:
+            self.root.destroy()
+        except Exception:
+            pass
 
     # ---------------------------------------------------------------------
     # 起動時に .ini から各 Tk 変数を復元
