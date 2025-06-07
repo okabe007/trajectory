@@ -35,4 +35,13 @@ nano README.md## 🚀 セットアップ方法（初回のみ）
 
 ```bash
 pip install -r requirements.txt
+```
 
+### 🏃‍♂️ シミュレーションの実行
+
+パラメータ設定用GUIは `entry.py` から起動できます。GUIで設定を行い
+**Save settings and run simulation** ボタンを押すと、そのままシミュレーションが開始されます。
+
+```bash
+python entry.py
+```

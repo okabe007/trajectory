@@ -1,66 +1,40 @@
-diff --git a/entry.py b/entry.py
-index a94fae099e220b9161986cb75cb5c4a1958e55e3..470c12ae4060430bb9c92a1ec677af337ef510ed 100644
---- a/entry.py
-+++ b/entry.py
-@@ -1,57 +1,58 @@
- import os
- import sys
+diff --git a/README.md b/README.md
+index 117ee56f44bf9976acbfa4ee839c2b996cf905c7..58be7b68f42bee196af3a8f85c18533abde7ad47 100644
+--- a/README.md
++++ b/README.md
+@@ -13,26 +13,35 @@
+ - 卵子との遭遇頻度の統計的出力
+ - `matplotlib` によるXY/XZ/YZ/3Dグラフ描画
+ - `.ini` ファイルによるパラメータ指定と再現実験
+ - `pytest` によるユニットテスト対応済み
  
- # プロジェクトルート（trajectory_reboot）を取得
- ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+ ---
  
- # パスに追加（重複追加を防ぐ）
- if ROOT_DIR not in sys.path:
-     sys.path.insert(0, ROOT_DIR)
+ ## 🚀 セットアップ方法
  
- from tkinter import Tk
--from spermsim.initialization import SimApp, load_config
--from core.simulation_core import SpermSimulation  # ←← これに変更
-+from spermsim.initialization import SimApp
-+from tools.ini_handler import load_config
-+from core.simulation_core import SpermSimulation
+ このプロジェクトを実行するには、Python 3.8 以上が必要です。
  
- REQUIRED_KEYS = [
-     "drop_r", "step_length", "number_of_sperm",
-     "x_min", "x_max", "y_min", "y_max", "z_min", "z_max",
-     "egg_center", "limit"
- ]
+ ### 1. 通常の環境で
  
- def check_config_validity(constants: dict):
-     missing = [k for k in REQUIRED_KEYS if k not in constants]
-     if missing:
-         raise ValueError(
-             f"[ERROR] sperm_config.ini に以下の派生変数が含まれていません:\n{missing}\n"
-             "→ GUIで保存（[保存して終了] ボタン）を完了してください。"
-         )
+ ```bash
+ git clone https://github.com/<your-username>/trajectory_reboot.git
+ cd trajectory_reboot
+ pip install -r requirements.txt
+ nano README.md## 🚀 セットアップ方法（初回のみ）
  
- def main():
-     # 1. GUI 起動
-     print("[ENTRY] GUIを起動します...")
-     root = Tk()
-     app = SimApp(root)
-     root.mainloop()  # GUIが閉じられるまで待機
+ このプロジェクトを実行するには、Python の依存ライブラリをインストールする必要があります。
  
-     # 2. .ini 読み込み
-     config_path = "sperm_config.ini"
-     if not os.path.exists(config_path):
-         raise FileNotFoundError("[ERROR] sperm_config.ini が見つかりません。保存して終了を押しましたか？")
+ ### ✅ 1. 通常の Python 環境でのセットアップ方法
  
-     constants = load_config()
-     check_config_validity(constants)
+ ```bash
+ pip install -r requirements.txt
++```
  
-     # 3. シミュレーション実行
-     result_dir = "results"
-     os.makedirs(result_dir, exist_ok=True)
- 
--    sim = SpermSimulation()
-+    sim = SpermSimulation(constants)
-     sim.run(constants, result_dir, "simulation_result", save_flag=True)
-     print("[DEBUG] plot_trajectories() を呼び出します")
-     sim.plot_trajectories()
-     print("[DEBUG] plot_trajectories() を完了しました")
-     sim.plot_movie_trajectories()
-     print("[ENTRY] シミュレーション完了。")
- 
- if __name__ == "__main__":
-     main()
++### 🏃‍♂️ シミュレーションの実行
++
++パラメータ設定用GUIは `entry.py` から起動できます。GUIで設定を行い
++**Save settings and run simulation** ボタンを押すと、そのままシミュレーションが開始されます。
++
++```bash
++python entry.py
++```
