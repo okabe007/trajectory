@@ -1,57 +1,57 @@
-diff --git a/spermsim/initialization.py b/spermsim/initialization.py
-index 26bc2083349634983893cdc4260fe40134b5156b..f4612279390bb4d7d97556db32685f22b5c8742d 100644
---- a/spermsim/initialization.py
-+++ b/spermsim/initialization.py
-@@ -122,51 +122,51 @@ def calculate_derived_constants(raw_constants):
-     if "spot_r" in constants:
-         r_raw = float(constants["spot_r"])
-         constants["spot_r"] = r_raw / 1000.0 if r_raw > 10 else r_raw
-     if "spot_bottom_r" in constants:
-         br_raw = float(constants["spot_bottom_r"])
-         constants["spot_bottom_r"] = br_raw / 1000.0 if br_raw > 10 else br_raw
-     if "spot_bottom_height" in constants:
-         bh_raw = float(constants["spot_bottom_height"])
-         constants["spot_bottom_height"] = bh_raw / 1000.0 if bh_raw > 10 else bh_raw
+diff --git a/spermsim/main.py b/spermsim/main.py
+index 5755a7264f133c91a9baa21c64c2fe3f0caf85f1..9c6d59928bb893ca37ef68754221a9c4a98afc24 100644
+--- a/spermsim/main.py
++++ b/spermsim/main.py
+@@ -101,51 +101,51 @@ def get_program_version():
+     try:
+         file_name = os.path.basename(__file__)
+     except NameError:
+         file_name = "interactive"
+     version = f"{file_name}"
+     return version
  
-     if shape == "spot":
-         angle_deg = float(constants.get("spot_angle", 0.0))
-         spot_r_mm, bottom_r_mm, bottom_h_mm = calc_spot_geometry(vol, angle_deg)
-         constants["spot_r"] = spot_r_mm
-         constants["spot_bottom_r"] = bottom_r_mm
-         constants["spot_bottom_height"] = bottom_h_mm
+ def get_constants_from_gui(selected_data, shape, volume, sperm_conc):
+     """
+     GUI から受け取った選択データと shape, volume, sperm_conc を元に、
+     シミュレーション定数をまとめた辞書を作成して返す。
+     """
+     constants = {}
+     constants['shape'] = shape.lower()
+     constants['volume'] = float(volume)
+     constants['sperm_conc'] = int(sperm_conc)
+     constants['spot_angle']        = float(selected_data.get('spot_angle', 60))
+     constants['vsl']               = float(selected_data.get('vsl', 0.13))
+     constants['deviation']         = float(selected_data.get('deviation', 0.04))
+     constants['sample_rate_hz']     = float(selected_data.get('sample_rate_hz', 2))
+     constants['sim_min']           = float(selected_data.get('sim_min', 10))
+     constants['gamete_r']          = float(selected_data.get('gamete_r', 0.15))
+     constants['surface_time']      = float(selected_data.get('surface_time', 0))
+     constants['stick_sec']         = int(selected_data.get('stick_sec', 2))
+     constants['stick_steps'] = constants['stick_sec'] * constants['sample_rate_hz']
+-    constants['step_length'] = constants['vsl'] / constants['sample_rate_hz']
++    constants['step_length'] = (constants['vsl'] * constants['sample_rate_hz']) / 1000
+     constants['limit'] = 1e-10
+     egg_localization = selected_data.get('egg_localization', 'bottom_center').strip()
+     constants['egg_localization'] = egg_localization
+     constants['initial_direction']    = selected_data.get('initial_direction', 'random').strip()
+     constants['initial_stick'] = int(selected_data.get('initial_stick', 0))
+     constants['seed_number']          = selected_data.get('seed_number', None)
+     constants['N_repeat']             = int(selected_data.get('n_repeat', 1))
+     outputs = selected_data.get('outputs', [])
+     constants['draw_trajectory'] = 'yes' if 'graph' in outputs else 'no'
+     constants['make_movie']      = 'yes' if 'movie' in outputs else 'no'
+     if constants['seed_number'] and str(constants['seed_number']).lower() != IOStatus.NONE:
+         np.random.seed(int(constants['seed_number']))
+     constants['analysis_type'] = selected_data.get('analysis_type', "simulation")
  
-     if shape == "cube":
-         edge = vol ** (1.0 / 3.0)
-         constants["edge"] = edge
+     # ★ここで派生値をtools/derived_constants.pyで一元計算
+     from tools.derived_constants import calculate_derived_constants
+     constants = calculate_derived_constants(constants)
  
-     vsl_um_s = float(constants.get("vsl", 0.0))  # GUI value in µm/s
-     sample_rate_hz = float(constants.get("sample_rate_hz", 0.0))
-     vsl_mm_s = vsl_um_s / 1000.0
-     constants["vsl"] = vsl_mm_s
--    constants["step_length"] = vsl_mm_s / sample_rate_hz if sample_rate_hz else 0.0
-+    constants["step_length"] = (vsl_um_s * sample_rate_hz) / 1000.0
+     return constants
  
-     if "vol" in constants and "sperm_conc" in constants:
-         try:
-             vol_ul = float(constants["vol"])
-             conc = float(constants["sperm_conc"])
-             constants["number_of_sperm"] = int(conc * vol_ul / 1000)
-         except Exception:
-             pass
  
-     if shape == "cube":
-         half = constants["edge"] / 2
-         constants.update(
-             x_min=-half, x_max=half,
-             y_min=-half, y_max=half,
-             z_min=0.0,   z_max=constants["edge"]
-         )
-     elif shape == "drop":
-         r = constants["drop_r"]
-         constants.update(
-             x_min=-r, x_max=r,
-             y_min=-r, y_max=r,
-             z_min=-r, z_max=r
-         )
-     elif shape == "spot":
-         R = constants["spot_r"]
+ def placement_of_eggs(constants):
+     """
+     shape, egg_localization に応じた卵子の配置座標などを返す。
+     """

@@ -123,7 +123,7 @@ def get_constants_from_gui(selected_data, shape, volume, sperm_conc):
     constants['surface_time']      = float(selected_data.get('surface_time', 0))
     constants['stick_sec']         = int(selected_data.get('stick_sec', 2))
     constants['stick_steps'] = constants['stick_sec'] * constants['sample_rate_hz']
-    constants['step_length'] = constants['vsl'] / constants['sample_rate_hz']
+    constants['step_length'] = (constants['vsl'] * constants['sample_rate_hz']) / 1000
     constants['limit'] = 1e-10
     egg_localization = selected_data.get('egg_localization', 'bottom_center').strip()
     constants['egg_localization'] = egg_localization
