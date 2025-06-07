@@ -44,8 +44,8 @@ def calculate_derived_constants(raw_constants):
     # step_length = vsl * rate / 1000
     vsl_um_s = float(constants.get("vsl", 0.0))
     sample_rate_hz = float(constants.get("sample_rate_hz", 0.0))
-    step_length_mm = (vsl_um_s * sample_rate_hz) / 1000.0
-    constants["step_length"] = step_length_mm
+    step_length = (vsl_um_s * sample_rate_hz) / 1000.0
+    constants["step_length"] = step_length
 
     # x/y/z 軸範囲設定
     if shape == "cube":

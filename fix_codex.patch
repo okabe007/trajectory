@@ -1,36 +1,59 @@
-diff --git a/spermsim/initialization.py b/spermsim/initialization.py
-index 26bc2083349634983893cdc4260fe40134b5156b..4a1b34cfd43e0426e0db942a14e77f53e2c88eb2 100644
---- a/spermsim/initialization.py
-+++ b/spermsim/initialization.py
-@@ -492,31 +492,28 @@ class SimApp:
-             try:
-                 if isinstance(var, tk.DoubleVar):
-                     val = float(v)
-                     if k == "vsl":
-                         val *= 1000.0  # mm/s → µm/s
-                     elif k == "gamete_r":
-                         val *= 1000.0  # mm  → µm
-                     var.set(val)
-                 elif isinstance(var, tk.IntVar):
-                     var.set(int(float(v)))
-                 else:
-                     var.set(str(v))
-             except Exception:
-                 var.set(v)
-         # display_mode
-         modes = self.config_data.get("display_mode", [])
-         if isinstance(modes, list) and modes:
-             self.tk_vars["display_mode"].set(modes[0])
-         elif isinstance(modes, str):
-             self.tk_vars["display_mode"].set(modes)
- # ---------------------------------------------------------------------------
- # エントリーポイント
- # ---------------------------------------------------------------------------
+diff --git a/derived_constants.py b/derived_constants.py
+index 4c56f0ee4cde928715a5e60059df3696eb4da98f..8f7701065843da4dbc4e1facd56a36c9d1c1a3b9 100644
+--- a/derived_constants.py
++++ b/derived_constants.py
+@@ -22,52 +22,52 @@ def calculate_derived_constants(raw_constants):
+     gamete_r_um = float(constants.get("gamete_r", 50.0))
+     gamete_r_mm = gamete_r_um / 1000.0
+     constants["gamete_r"] = gamete_r_mm
  
- if __name__ == "__main__":
--    print("[DEBUG] starting SimApp ...")
-     root = tk.Tk()
-     app = SimApp(root)
-     root.mainloop()
--
--    app.mainloop()
+     # drop_r の自動計算（球体と仮定）
+     if shape == "drop" and "drop_r" not in raw_constants:
+         r_mm = ((3.0 * vol) / (4.0 * math.pi)) ** (1.0 / 3.0)
+         constants["drop_r"] = r_mm
+ 
+     # spot_r 等の逆算（球冠）
+     if shape == "spot" and "spot_r" not in raw_constants:
+         angle_deg = float(constants.get("spot_angle", 0.0))
+         spot_r_mm, bottom_r_mm, bottom_h_mm = calc_spot_geometry(vol, angle_deg)
+         constants["spot_r"] = spot_r_mm
+         constants["spot_bottom_r"] = bottom_r_mm
+         constants["spot_bottom_height"] = bottom_h_mm
+ 
+     # edge の計算（cube）
+     if shape == "cube":
+         edge = vol ** (1.0 / 3.0)
+         constants["edge"] = edge
+ 
+     # step_length = vsl * rate / 1000
+     vsl_um_s = float(constants.get("vsl", 0.0))
+     sample_rate_hz = float(constants.get("sample_rate_hz", 0.0))
+-    step_length_mm = (vsl_um_s * sample_rate_hz) / 1000.0
+-    constants["step_length"] = step_length_mm
++    step_length = (vsl_um_s * sample_rate_hz) / 1000.0
++    constants["step_length"] = step_length
+ 
+     # x/y/z 軸範囲設定
+     if shape == "cube":
+         half = constants["edge"] / 2
+         constants.update(
+             x_min=-half, x_max=half,
+             y_min=-half, y_max=half,
+             z_min=0.0,   z_max=constants["edge"]
+         )
+     elif shape == "drop":
+         r = constants["drop_r"]
+         constants.update(
+             x_min=-r, x_max=r,
+             y_min=-r, y_max=r,
+             z_min=0.0, z_max=2 * r
+         )
+     elif shape == "spot":
+         R = constants["spot_r"]
+         b_r = constants["spot_bottom_r"]
+         constants.update(
+             x_min=-b_r, x_max=b_r,
+             y_min=-b_r, y_max=b_r,
+             z_min=0.0,  z_max=R
+         )
+     else:
