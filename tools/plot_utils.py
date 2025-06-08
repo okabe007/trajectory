@@ -64,6 +64,7 @@ def plot_2d_trajectories(trajs_um, constants, save_path=None, show=True, max_spe
         axs[0].add_patch(Circle((0.0, 0.0), r, color="pink", alpha=0.3))
         axs[1].add_patch(Circle((0.0, 0.0), r, color="pink", alpha=0.3))
         axs[2].add_patch(Circle((0.0, 0.0), r, color="pink", alpha=0.3))
+        print(f"[DEBUG] draw drop medium radius={r}")
     elif shape == "spot":
         R = constants["spot_r"]
         b_r = constants["spot_bottom_r"]
@@ -73,11 +74,13 @@ def plot_2d_trajectories(trajs_um, constants, save_path=None, show=True, max_spe
         axs[0].add_patch(Circle((0.0, 0.0), b_r, color="pink", alpha=0.3))
         axs[1].fill_between(x_vals, b_h, z_vals, color="pink", alpha=0.3)
         axs[2].fill_between(x_vals, b_h, z_vals, color="pink", alpha=0.3)
+        print(f"[DEBUG] draw spot medium bottom_r={b_r} bottom_h={b_h}")
     egg_center = constants["egg_center"]
     egg_r = constants["gamete_r"]
     axs[0].add_patch(Circle((egg_center[0], egg_center[1]), egg_r, facecolor="yellow", alpha=0.6, edgecolor="gray"))
     axs[1].add_patch(Circle((egg_center[0], egg_center[2]), egg_r, facecolor="yellow", alpha=0.6, edgecolor="gray"))
     axs[2].add_patch(Circle((egg_center[1], egg_center[2]), egg_r, facecolor="yellow", alpha=0.6, edgecolor="gray"))
+    print(f"[DEBUG] draw egg center={egg_center} radius={egg_r}")
     if max_sperm is None:
         max_sperm = trajs_mm.shape[0]
     for s in range(min(max_sperm, trajs_mm.shape[0])):
