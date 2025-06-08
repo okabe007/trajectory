@@ -1,78 +1,38 @@
-diff --git a/tools/plot_utils.py b/tools/plot_utils.py
-index 817568beaeb50620f6b4e20eef6264fcb3a5e9a7..5eab3e2c6966cf7a644106a8c0dafe92f4baecac 100644
---- a/tools/plot_utils.py
-+++ b/tools/plot_utils.py
-@@ -87,68 +87,71 @@ def plot_2d_trajectories(trajs_um, constants, save_path=None, show=True, max_spe
-     for ax, title, xlab, ylab, xlim, ylim in zip(
-         axs,
-         ["XY (mm)", "XZ (mm)", "YZ (mm)"],
-         ["X (mm)", "X (mm)", "Y (mm)"],
-         ["Y (mm)", "Z (mm)", "Z (mm)"],
-         [(x_min, x_max), (x_min, x_max), (y_min, y_max)],
-         [(y_min, y_max), (z_min, z_max), (z_min, z_max)]
-     ):
-         ax.set_title(title)
-         ax.set_xlim(xlim)
-         ax.set_ylim(ylim)
-         ax.set_xlabel(xlab)
-         ax.set_ylabel(ylab)
-         ax.set_aspect('equal')
-         ax.grid(True, linestyle='--', linewidth=0.5, alpha=0.5)
-     fig.tight_layout()
-     if save_path:
-         fig.savefig(save_path)
-         try:
-             import subprocess
-             subprocess.run(["open", save_path])
-         except Exception as e:
-             print(f"[WARN] open失敗: {e}")
-     plt.show()
+diff --git a/spermsim/coremovie.py b/spermsim/coremovie.py
+index a3b894c4a674c05389523f93e2c801ceda6b1779..c3a1129be242f226f3dd8b0b39bf9b3cc19ae007 100644
+--- a/spermsim/coremovie.py
++++ b/spermsim/coremovie.py
+@@ -1,29 +1,32 @@
+ import numpy as np
+ import matplotlib.pyplot as plt
+ from matplotlib.animation import FuncAnimation
+-from tools.visual_utils import draw_medium, draw_egg_3d  # 必要に応じて調整
++# draw_medium は tools.plot_utils 側が cube/spot など全ての形状に対応している
++# ためそちらを利用する
++from tools.plot_utils import draw_medium
++from tools.visual_utils import draw_egg_3d  # 必要に応じて調整
  
--def plot_3d_movie_trajectories(trajs: np.ndarray, vectors: np.ndarray, constants: dict,
-+def plot_3d_movie_trajectories(trajs: np.ndarray, constants: dict,
-                                 save_path=None, show=True, format="mp4"):
+ def render_3d_movie(
+     trajs: np.ndarray,
+     vectors: np.ndarray,
+     constants: dict,
+     save_path=None,
+     show=True
+ ):
+     print('[DEBUG] render_3d_movie 呼ばれた shape:', constants.get('shape'))
+     all_norms = np.linalg.norm(vectors.reshape(-1, 3), axis=1)
+     print(f"[DEBUG] vectors 長さの範囲: min={all_norms.min():.4g}, max={all_norms.max():.4g}")
+ 
      fig = plt.figure()
      ax = fig.add_subplot(111, projection='3d')
+ 
+     # 軸設定
      xlim = constants["x_min"], constants["x_max"]
      ylim = constants["y_min"], constants["y_max"]
      zlim = constants["z_min"], constants["z_max"]
      ax.set_xlim(*xlim)
      ax.set_ylim(*ylim)
      ax.set_zlim(*zlim)
-     ax.set_box_aspect([xlim[1]-xlim[0], ylim[1]-ylim[0], zlim[1]-zlim[0]])
-     ax.set_xlabel("X")
-     ax.set_ylabel("Y")
-     ax.set_zlabel("Z")
-     ax.set_title("3D Sperm Vectors (Fixed Length)")
-     draw_medium(ax, constants)
-     draw_egg_3d(ax, constants["egg_center"], constants.get("gamete_r", 0.05))
-     num_sperm, num_frames = trajs.shape[0], trajs.shape[1]
-     full_colors = plt.cm.tab20(np.linspace(0, 1, 20))
-     colors = [full_colors[i] for i in range(20) if i != 3]
-     quivers = [
-         ax.quiver(0, 0, 0, 0, 0, 0, length=0.1, normalize=True,
-                   arrow_length_ratio=0.9, linewidth=2.5, color=colors[i % len(colors)])
-         for i in range(num_sperm)
-     ]
-     def update(frame):
-         for i in range(num_sperm):
-             x, y, z = trajs[i, frame]
--            u, v, w = vectors[i, frame]
-+            if frame < num_frames - 1:
-+                u, v, w = trajs[i, frame + 1] - trajs[i, frame]
-+            else:
-+                u, v, w = trajs[i, frame] - trajs[i, frame - 1]
-             quivers[i].remove()
-             quivers[i] = ax.quiver(x, y, z, u, v, w, length=0.1, normalize=True,
-                                    arrow_length_ratio=0.7, linewidth=2, color=colors[i % len(colors)])
-         return quivers
-     ani = FuncAnimation(fig, update, frames=num_frames, interval=100, blit=False)
-     if save_path:
-         fig.savefig(save_path)
-         try:
-             import subprocess
-             subprocess.run(["open", save_path])
-         except Exception as e:
-             print(f"[WARN] open失敗: {e}")
-     plt.show()
-     plt.close(fig)
+     ax.set_box_aspect([
+         xlim[1] - xlim[0],
+         ylim[1] - ylim[0],
