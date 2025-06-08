@@ -31,7 +31,6 @@ def _io_check_spot(
     stick_status: int = 0,
 ) -> tuple[np.ndarray, str, bool]:
     """Return corrected position, final status and bottom hit flag.
-
     The candidate position is repeatedly adjusted whenever it exits the
     spherical cap so that the returned position lies inside.  If the
     trajectory hits the bottom plane during this process ``bottom_hit`` is

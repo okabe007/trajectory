@@ -74,15 +74,15 @@ def render_3d_movie(
         # 全精子のベクトル描画
         for i in range(num_sperm):
             x, y, z = trajs[i, frame]
-            u, v, w = vectors[i, frame]
-            norm = np.linalg.norm([u, v, w]) + 1e-12
-        
-            u, v, w = u / norm, v / norm, w / norm  # ✅ 向きのみ保持（単位ベクトル）
+            if frame < num_frames - 1:
+                u, v, w = trajs[i, frame + 1] - trajs[i, frame]
+            else:
+                u, v, w = trajs[i, frame] - trajs[i, frame - 1]
 
             ax.quiver(
                 x, y, z, u, v, w,
-                length=0.1,               # ✅ Masaru仕様：表示長さを0.1mmに固定
-                normalize=True,           # ✅ 方向ベクトルを正規化
+                length=0.1,
+                normalize=True,
                 arrow_length_ratio=0.7,
                 linewidth=2,
                 color=colors[i % 19]
