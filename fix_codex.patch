@@ -1,38 +1,123 @@
-diff --git a/spermsim/coremovie.py b/spermsim/coremovie.py
-index a3b894c4a674c05389523f93e2c801ceda6b1779..04df508547daa19298e313216969a5487bf3193b 100644
---- a/spermsim/coremovie.py
-+++ b/spermsim/coremovie.py
-@@ -1,29 +1,32 @@
- import numpy as np
- import matplotlib.pyplot as plt
- from matplotlib.animation import FuncAnimation
--from tools.visual_utils import draw_medium, draw_egg_3d  # 必要に応じて調整
-+# draw_medium は tools.plot_utils 側が cube/spot など全ての形状に対応している
-+# ためそちらを利用する
-+# draw_medium, draw_egg_3d は plot_utils に統合済み
-+from tools.plot_utils import draw_medium, draw_egg_3d
+diff --git a/core/simulation_core.py b/core/simulation_core.py
+index 8990a08b598014beff1f1156e735e6e5b8281c48..597f2cd68e13218fe40cfd093e75403952fc0cc1 100644
+--- a/core/simulation_core.py
++++ b/core/simulation_core.py
+@@ -138,51 +138,61 @@ import matplotlib.pyplot as plt
  
- def render_3d_movie(
-     trajs: np.ndarray,
-     vectors: np.ndarray,
-     constants: dict,
-     save_path=None,
-     show=True
- ):
-     print('[DEBUG] render_3d_movie 呼ばれた shape:', constants.get('shape'))
-     all_norms = np.linalg.norm(vectors.reshape(-1, 3), axis=1)
-     print(f"[DEBUG] vectors 長さの範囲: min={all_norms.min():.4g}, max={all_norms.max():.4g}")
+ def plot_trajectories(self, max_sperm=5, save_path=None):
+     """
+     インスタンスのself.trajectory（リスト of N×3 配列）を可視化
+     max_sperm: 表示する精子軌跡の最大本数
+     save_path: Noneなら画面表示のみ、パス指定で保存
+     """
+     import matplotlib.pyplot as plt
+     import numpy as np
+     import os
+     trajectories = np.array(self.trajectory)
+     constants = self.constants
+     if trajectories is None or len(trajectories) == 0:
+         print('[WARNING] 軌跡データがありません。run()実行後にplot_trajectoriesしてください。')
+         return
+     all_mins = [constants['x_min'], constants['y_min'], constants['z_min']]
+     all_maxs = [constants['x_max'], constants['y_max'], constants['z_max']]
+     global_min = min(all_mins)
+     global_max = max(all_maxs)
+     fig, axes = plt.subplots(1, 3, figsize=(10, 4))
+     ax_xy, ax_xz, ax_yz = axes
+     colors = ['r', 'g', 'b', 'c', 'm', 'y', 'k']
+     n_sperm = min(len(trajectories), max_sperm)
+     egg_x, egg_y, egg_z = constants["egg_center"]
+     for ax, (x, y) in zip(axes, [(egg_x, egg_y), (egg_x, egg_z), (egg_y, egg_z)]):
+-        ax.add_patch(patches.Circle((x, y), radius=constants.get('gamete_r', 0), facecolor='yellow', alpha=0.8, ec='gray', linewidth=0.5))
++        ax.add_patch(
++            patches.Circle(
++                (x, y),
++                radius=constants.get('gamete_r', 0),
++                facecolor='yellow',
++                alpha=0.8,
++                ec='gray',
++                linewidth=0.5
++            )
++        )
++    print(f"[DEBUG] draw egg center=({egg_x}, {egg_y}, {egg_z}) radius={constants.get('gamete_r', 0)}")
+     for i in range(n_sperm):
+         ax_xy.plot(trajectories[i][:, 0], trajectories[i][:, 1], color=colors[i % len(colors)])
+     ax_xy.set_xlim(global_min, global_max)
+     ax_xy.set_ylim(global_min, global_max)
+     ax_xy.set_aspect('equal')
+     ax_xy.set_xlabel('X')
+     ax_xy.set_ylabel('Y')
+     ax_xy.set_title('XY projection')
+     for i in range(n_sperm):
+         ax_xz.plot(trajectories[i][:, 0], trajectories[i][:, 2], color=colors[i % len(colors)])
+     ax_xz.set_xlim(global_min, global_max)
+     ax_xz.set_ylim(global_min, global_max)
+     ax_xz.set_aspect('equal')
+     ax_xz.set_xlabel('X')
+     ax_xz.set_ylabel('Z')
+     ax_xz.set_title('XZ projection')
+     for i in range(n_sperm):
+         ax_yz.plot(trajectories[i][:, 1], trajectories[i][:, 2], color=colors[i % len(colors)])
+     ax_yz.set_xlim(global_min, global_max)
+     ax_yz.set_ylim(global_min, global_max)
+     ax_yz.set_aspect('equal')
+     ax_yz.set_xlabel('Y')
+     ax_yz.set_ylabel('Z')
+     ax_yz.set_title('YZ projection')
+     param_summary = ', '.join((f'{k}={constants.get(k)}' for k in ['shape', 'vol', 'sperm_conc', 'vsl', 'deviation']))
+diff --git a/core/simulation_core.py b/core/simulation_core.py
+index 8990a08b598014beff1f1156e735e6e5b8281c48..597f2cd68e13218fe40cfd093e75403952fc0cc1 100644
+--- a/core/simulation_core.py
++++ b/core/simulation_core.py
+@@ -484,50 +494,51 @@ class SpermSimulation:
+             print('[WARNING] 軌跡データがありません。run()実行後にplot_trajectoriesしてください。')
+             return
  
-     fig = plt.figure()
-     ax = fig.add_subplot(111, projection='3d')
+         all_mins = [constants['x_min'], constants['y_min'], constants['z_min']]
+         all_maxs = [constants['x_max'], constants['y_max'], constants['z_max']]
+         global_min = min(all_mins)
+         global_max = max(all_maxs)
  
-     # 軸設定
-     xlim = constants["x_min"], constants["x_max"]
-     ylim = constants["y_min"], constants["y_max"]
-     zlim = constants["z_min"], constants["z_max"]
-     ax.set_xlim(*xlim)
-     ax.set_ylim(*ylim)
-     ax.set_zlim(*zlim)
-     ax.set_box_aspect([
-         xlim[1] - xlim[0],
-         ylim[1] - ylim[0],
+         fig, axes = plt.subplots(1, 3, figsize=(10, 4))
+         ax_xy, ax_xz, ax_yz = axes
+         colors = ['r', 'g', 'b', 'c', 'm', 'y', 'k']
+         n_sperm = len(trajectories)
+ 
+         egg_x, egg_y, egg_z = constants["egg_center"]
+         for ax, (x, y) in zip(axes, [(egg_x, egg_y), (egg_x, egg_z), (egg_y, egg_z)]):
+             ax.add_patch(
+                 patches.Circle(
+                     (x, y),
+                     radius=constants.get('gamete_r', 0),
+                     facecolor='yellow',
+                     alpha=0.8,
+                     ec='gray',
+                     linewidth=0.5
+                 )
+             )
++        print(f"[DEBUG] draw egg center=({egg_x}, {egg_y}, {egg_z}) radius={constants.get('gamete_r', 0)}")
+ 
+         for i in range(n_sperm):
+             ax_xy.plot(trajectories[i][:, 0], trajectories[i][:, 1], color=colors[i % len(colors)])
+         ax_xy.set_xlim(global_min, global_max)
+         ax_xy.set_ylim(global_min, global_max)
+         ax_xy.set_aspect('equal')
+         ax_xy.set_xlabel('X')
+         ax_xy.set_ylabel('Y')
+         ax_xy.set_title('XY projection')
+ 
+         for i in range(n_sperm):
+             ax_xz.plot(trajectories[i][:, 0], trajectories[i][:, 2], color=colors[i % len(colors)])
+         ax_xz.set_xlim(global_min, global_max)
+         ax_xz.set_ylim(global_min, global_max)
+         ax_xz.set_aspect('equal')
+         ax_xz.set_xlabel('X')
+         ax_xz.set_ylabel('Z')
+         ax_xz.set_title('XZ projection')
+ 
+         for i in range(n_sperm):
+             ax_yz.plot(trajectories[i][:, 1], trajectories[i][:, 2], color=colors[i % len(colors)])
+         ax_yz.set_xlim(global_min, global_max)
+         ax_yz.set_ylim(global_min, global_max)
+         ax_yz.set_aspect('equal')
+         ax_yz.set_xlabel('Y')

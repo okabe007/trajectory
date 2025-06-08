@@ -160,7 +160,17 @@ def plot_trajectories(self, max_sperm=5, save_path=None):
     n_sperm = min(len(trajectories), max_sperm)
     egg_x, egg_y, egg_z = constants["egg_center"]
     for ax, (x, y) in zip(axes, [(egg_x, egg_y), (egg_x, egg_z), (egg_y, egg_z)]):
-        ax.add_patch(patches.Circle((x, y), radius=constants.get('gamete_r', 0), facecolor='yellow', alpha=0.8, ec='gray', linewidth=0.5))
+        ax.add_patch(
+            patches.Circle(
+                (x, y),
+                radius=constants.get('gamete_r', 0),
+                facecolor='yellow',
+                alpha=0.8,
+                ec='gray',
+                linewidth=0.5
+            )
+        )
+    print(f"[DEBUG] draw egg center=({egg_x}, {egg_y}, {egg_z}) radius={constants.get('gamete_r', 0)}")
     for i in range(n_sperm):
         ax_xy.plot(trajectories[i][:, 0], trajectories[i][:, 1], color=colors[i % len(colors)])
     ax_xy.set_xlim(global_min, global_max)
@@ -506,6 +516,7 @@ class SpermSimulation:
                     linewidth=0.5
                 )
             )
+        print(f"[DEBUG] draw egg center=({egg_x}, {egg_y}, {egg_z}) radius={constants.get('gamete_r', 0)}")
 
         for i in range(n_sperm):
             ax_xy.plot(trajectories[i][:, 0], trajectories[i][:, 1], color=colors[i % len(colors)])
