@@ -1,65 +1,78 @@
-diff --git a/spermsim/coremovie.py b/spermsim/coremovie.py
-index 12b8b3a98a737c321c2eee85da695f3c61325413..a3b894c4a674c05389523f93e2c801ceda6b1779 100644
---- a/spermsim/coremovie.py
-+++ b/spermsim/coremovie.py
-@@ -52,54 +52,54 @@ def render_3d_movie(
-     # update関数（毎フレーム描画更新）
+diff --git a/tools/plot_utils.py b/tools/plot_utils.py
+index 817568beaeb50620f6b4e20eef6264fcb3a5e9a7..5eab3e2c6966cf7a644106a8c0dafe92f4baecac 100644
+--- a/tools/plot_utils.py
++++ b/tools/plot_utils.py
+@@ -87,68 +87,71 @@ def plot_2d_trajectories(trajs_um, constants, save_path=None, show=True, max_spe
+     for ax, title, xlab, ylab, xlim, ylim in zip(
+         axs,
+         ["XY (mm)", "XZ (mm)", "YZ (mm)"],
+         ["X (mm)", "X (mm)", "Y (mm)"],
+         ["Y (mm)", "Z (mm)", "Z (mm)"],
+         [(x_min, x_max), (x_min, x_max), (y_min, y_max)],
+         [(y_min, y_max), (z_min, z_max), (z_min, z_max)]
+     ):
+         ax.set_title(title)
+         ax.set_xlim(xlim)
+         ax.set_ylim(ylim)
+         ax.set_xlabel(xlab)
+         ax.set_ylabel(ylab)
+         ax.set_aspect('equal')
+         ax.grid(True, linestyle='--', linewidth=0.5, alpha=0.5)
+     fig.tight_layout()
+     if save_path:
+         fig.savefig(save_path)
+         try:
+             import subprocess
+             subprocess.run(["open", save_path])
+         except Exception as e:
+             print(f"[WARN] open失敗: {e}")
+     plt.show()
+ 
+-def plot_3d_movie_trajectories(trajs: np.ndarray, vectors: np.ndarray, constants: dict,
++def plot_3d_movie_trajectories(trajs: np.ndarray, constants: dict,
+                                 save_path=None, show=True, format="mp4"):
+     fig = plt.figure()
+     ax = fig.add_subplot(111, projection='3d')
+     xlim = constants["x_min"], constants["x_max"]
+     ylim = constants["y_min"], constants["y_max"]
+     zlim = constants["z_min"], constants["z_max"]
+     ax.set_xlim(*xlim)
+     ax.set_ylim(*ylim)
+     ax.set_zlim(*zlim)
+     ax.set_box_aspect([xlim[1]-xlim[0], ylim[1]-ylim[0], zlim[1]-zlim[0]])
+     ax.set_xlabel("X")
+     ax.set_ylabel("Y")
+     ax.set_zlabel("Z")
+     ax.set_title("3D Sperm Vectors (Fixed Length)")
+     draw_medium(ax, constants)
+     draw_egg_3d(ax, constants["egg_center"], constants.get("gamete_r", 0.05))
+     num_sperm, num_frames = trajs.shape[0], trajs.shape[1]
+     full_colors = plt.cm.tab20(np.linspace(0, 1, 20))
+     colors = [full_colors[i] for i in range(20) if i != 3]
+     quivers = [
+         ax.quiver(0, 0, 0, 0, 0, 0, length=0.1, normalize=True,
+                   arrow_length_ratio=0.9, linewidth=2.5, color=colors[i % len(colors)])
+         for i in range(num_sperm)
+     ]
      def update(frame):
-         ax.cla()
- 
-         # 軸とラベル
-         ax.set_xlim(*xlim)
-         ax.set_ylim(*ylim)
-         ax.set_zlim(*zlim)
-         ax.set_box_aspect([
-             xlim[1] - xlim[0],
-             ylim[1] - ylim[0],
-             zlim[1] - zlim[0]
-         ])
-         ax.set_xlabel("X")
-         ax.set_ylabel("Y")
-         ax.set_zlabel("Z")
-         ax.set_title(f"Frame {frame + 1} / {num_frames}")
- 
-         # 卵子・メディウム再描画
-         draw_medium(ax, constants)
-         draw_egg_3d(ax, egg_pos, egg_radius)
- 
-         # 全精子のベクトル描画
          for i in range(num_sperm):
              x, y, z = trajs[i, frame]
 -            u, v, w = vectors[i, frame]
--            norm = np.linalg.norm([u, v, w]) + 1e-12
--        
--            u, v, w = u / norm, v / norm, w / norm  # ✅ 向きのみ保持（単位ベクトル）
 +            if frame < num_frames - 1:
 +                u, v, w = trajs[i, frame + 1] - trajs[i, frame]
 +            else:
 +                u, v, w = trajs[i, frame] - trajs[i, frame - 1]
- 
-             ax.quiver(
-                 x, y, z, u, v, w,
--                length=0.1,               # ✅ Masaru仕様：表示長さを0.1mmに固定
--                normalize=True,           # ✅ 方向ベクトルを正規化
-+                length=0.1,
-+                normalize=True,
-                 arrow_length_ratio=0.7,
-                 linewidth=2,
-                 color=colors[i % 19]
-             )
- 
-     # アニメーション生成
-     ani = FuncAnimation(
-         fig, update,
-         frames=num_frames,
-         interval=100,
-         blit=False
-     )
- 
-     # 保存 or 表示
+             quivers[i].remove()
+             quivers[i] = ax.quiver(x, y, z, u, v, w, length=0.1, normalize=True,
+                                    arrow_length_ratio=0.7, linewidth=2, color=colors[i % len(colors)])
+         return quivers
+     ani = FuncAnimation(fig, update, frames=num_frames, interval=100, blit=False)
      if save_path:
-         ani.save(save_path, writer='ffmpeg', fps=10)
-     elif show:
-         plt.show()
- 
-     return ani  # ✅ GC破棄防止
+         fig.savefig(save_path)
+         try:
+             import subprocess
+             subprocess.run(["open", save_path])
+         except Exception as e:
+             print(f"[WARN] open失敗: {e}")
+     plt.show()
+     plt.close(fig)
