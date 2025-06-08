@@ -1,5 +1,5 @@
 diff --git a/spermsim/coremovie.py b/spermsim/coremovie.py
-index a3b894c4a674c05389523f93e2c801ceda6b1779..c3a1129be242f226f3dd8b0b39bf9b3cc19ae007 100644
+index a3b894c4a674c05389523f93e2c801ceda6b1779..04df508547daa19298e313216969a5487bf3193b 100644
 --- a/spermsim/coremovie.py
 +++ b/spermsim/coremovie.py
 @@ -1,29 +1,32 @@
@@ -9,8 +9,8 @@ index a3b894c4a674c05389523f93e2c801ceda6b1779..c3a1129be242f226f3dd8b0b39bf9b3c
 -from tools.visual_utils import draw_medium, draw_egg_3d  # 必要に応じて調整
 +# draw_medium は tools.plot_utils 側が cube/spot など全ての形状に対応している
 +# ためそちらを利用する
-+from tools.plot_utils import draw_medium
-+from tools.visual_utils import draw_egg_3d  # 必要に応じて調整
++# draw_medium, draw_egg_3d は plot_utils に統合済み
++from tools.plot_utils import draw_medium, draw_egg_3d
  
  def render_3d_movie(
      trajs: np.ndarray,

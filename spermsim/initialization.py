@@ -99,128 +99,90 @@ def load_config() -> dict:
             values[k] = raw
     return values
 
+import math
+import numpy as np
 
-def calculate_derived_constants(raw_constants):
-    constants = raw_constants.copy()
-    shape = constants.get("shape", "cube").lower()
-    constants["shape"] = shape
-    egg_localization = constants.get("egg_localization", "center")
-    vol = float(constants.get("vol", 0.0))  # μl = mm³
+def calculate_derived_constants(constants: dict) -> dict:
+    # --- 単位変換（mm化） ---
+    constants["gamete_r"] = float(constants["gamete_r"]) / 1000.0  # μm → mm
+    constants["vol"] = float(constants["vol"])
+    constants["vsl"] = float(constants["vsl"]) / 1000.0
+    constants["sample_rate_hz"] = float(constants["sample_rate_hz"])
+    constants["sperm_conc"] = float(constants["sperm_conc"])
+    constants["spot_angle"] = float(constants.get("spot_angle", 0.0))  # 必須shapeなら上書きされる
 
-    # --- unit conversions -------------------------------------------------
-    gamete_raw = float(constants.get("gamete_r", 50.0))
-    gamete_r_mm = gamete_raw / 1000.0 if gamete_raw > 10 else gamete_raw
-    constants["gamete_r"] = gamete_r_mm
+    # --- 基本パラメータ ---
+    shape = constants["shape"]
+    egg_localization = constants["egg_localization"]
+    gamete_r_mm = constants["gamete_r"]
 
-    if "drop_r" in constants:
-        r_raw = float(constants["drop_r"])
-        constants["drop_r"] = r_raw / 1000.0 if r_raw > 10 else r_raw
-    elif shape == "drop":
-        r_mm = ((3.0 * vol) / (4.0 * math.pi)) ** (1.0 / 3.0)
-        constants["drop_r"] = r_mm
-
-    if "spot_r" in constants:
-        r_raw = float(constants["spot_r"])
-        constants["spot_r"] = r_raw / 1000.0 if r_raw > 10 else r_raw
-    if "spot_bottom_r" in constants:
-        br_raw = float(constants["spot_bottom_r"])
-        constants["spot_bottom_r"] = br_raw / 1000.0 if br_raw > 10 else br_raw
-    if "spot_bottom_height" in constants:
-        bh_raw = float(constants["spot_bottom_height"])
-        constants["spot_bottom_height"] = bh_raw / 1000.0 if bh_raw > 10 else bh_raw
-
-    if shape == "spot":
-        angle_deg = float(constants.get("spot_angle", 0.0))
-        spot_r_mm, bottom_r_mm, bottom_h_mm = calc_spot_geometry(vol, angle_deg)
-        constants["spot_r"] = spot_r_mm
-        constants["spot_bottom_r"] = bottom_r_mm
-        constants["spot_bottom_height"] = bottom_h_mm
-
-    if shape == "cube":
-        edge = vol ** (1.0 / 3.0)
-        constants["edge"] = edge
-
-    vsl_um_s = float(constants.get("vsl", 0.0))  # GUI value in µm/s
-    sample_rate_hz = float(constants.get("sample_rate_hz", 0.0))
-    vsl_mm_s = vsl_um_s / 1000.0
-    constants["vsl"] = vsl_mm_s
-    constants["step_length"] = (vsl_um_s * sample_rate_hz) / 1000.0
-
-    if "vol" in constants and "sperm_conc" in constants:
-        try:
-            vol_ul = float(constants["vol"])
-            conc = float(constants["sperm_conc"])
-            constants["number_of_sperm"] = int(conc * vol_ul / 1000)
-        except Exception:
-            pass
-
-    if shape == "cube":
-        half = constants["edge"] / 2
+    # --- shape別の派生定数 ---
+    if shape == "drop":
+        drop_r = ((3.0 * constants["vol"]) / (4.0 * math.pi)) ** (1.0 / 3.0)
+        constants["drop_r"] = drop_r
         constants.update(
-            x_min=-half, x_max=half,
-            y_min=-half, y_max=half,
-            z_min=0.0,   z_max=constants["edge"]
+            x_min=-drop_r, x_max=drop_r,
+            y_min=-drop_r, y_max=drop_r,
+            z_min=-drop_r, z_max=drop_r
         )
-    elif shape == "drop":
-        r = constants["drop_r"]
-        constants.update(
-            x_min=-r, x_max=r,
-            y_min=-r, y_max=r,
-            z_min=-r, z_max=r
-        )
-    elif shape == "spot":
-        R = constants["spot_r"]
-        b_r = constants["spot_bottom_r"]
-        h = constants["spot_bottom_height"]
-        constants.update(
-            x_min=-b_r, x_max=b_r,
-            y_min=-b_r, y_max=b_r,
-            z_min=h,    z_max=R
-        )
-    else:
-        fallback = vol ** (1.0 / 3.0)
-        half = fallback / 2
-        constants.update(
-            x_min=-half, x_max=half,
-            y_min=-half, y_max=half,
-            z_min=0.0,   z_max=fallback
-        )
-
-    if shape == "cube":
         if egg_localization == "center":
             egg_center = np.array([0.0, 0.0, 0.0])
         elif egg_localization == "bottom_center":
-            egg_center = np.array([0.0, 0.0, constants["z_min"] + gamete_r_mm])
-        elif egg_localization == "bottom_edge":
-            egg_center = np.array([0.0, constants["y_min"] + gamete_r_mm, constants["z_min"] + gamete_r_mm])
-        else:
-            raise ValueError(f"Unsupported egg_localization for cube: {egg_localization}")
-    elif shape == "drop":
-        if egg_localization == "center":
-            egg_center = np.array([0.0, 0.0, 0.0])
-        elif egg_localization == "bottom_center":
-            egg_center = np.array([0.0, 0.0, constants["z_min"] + gamete_r_mm])
+            egg_center = np.array([0.0, 0.0, -drop_r + gamete_r_mm])
         else:
             raise ValueError(f"Unsupported egg_localization for drop: {egg_localization}")
+
     elif shape == "spot":
+        angle = constants["spot_angle"]
+        spot_r, bottom_r, bottom_h = calc_spot_geometry(constants["vol"], angle)
+        constants["spot_r"] = spot_r
+        constants["spot_bottom_r"] = bottom_r
+        constants["spot_bottom_height"] = bottom_h
+        constants.update(
+            x_min=-bottom_r, x_max=bottom_r,
+            y_min=-bottom_r, y_max=bottom_r,
+            z_min=bottom_h, z_max=spot_r
+        )
         if egg_localization == "center":
             z_mid = (constants["z_min"] + constants["z_max"]) / 2
             egg_center = np.array([0.0, 0.0, z_mid])
         elif egg_localization == "bottom_center":
-            egg_center = np.array([0.0, 0.0, constants["z_min"] + gamete_r_mm])
+            egg_center = np.array([0.0, 0.0, bottom_h + gamete_r_mm])
         elif egg_localization == "bottom_edge":
-            R = constants["spot_r"]
-            r = gamete_r_mm
-            x_edge = math.sqrt(4 * R * r)
-            egg_center = np.array([x_edge, 0.0, constants["z_min"] + gamete_r_mm])
+            x_edge = math.sqrt(4 * spot_r * gamete_r_mm)
+            egg_center = np.array([x_edge, 0.0, bottom_h + gamete_r_mm])
         else:
             raise ValueError(f"Unsupported egg_localization for spot: {egg_localization}")
+
+    elif shape == "cube":
+        edge = constants["vol"] ** (1.0 / 3.0)
+        constants["edge"] = edge
+        half = edge / 2
+        constants.update(
+            x_min=-half, x_max=half,
+            y_min=-half, y_max=half,
+            z_min=0.0,   z_max=edge
+        )
+        if egg_localization == "center":
+            egg_center = np.array([0.0, 0.0, 0.0])
+        elif egg_localization == "bottom_center":
+            egg_center = np.array([0.0, 0.0, gamete_r_mm])
+        elif egg_localization == "bottom_edge":
+            egg_center = np.array([0.0, -half + gamete_r_mm, gamete_r_mm])
+        else:
+            raise ValueError(f"Unsupported egg_localization for cube: {egg_localization}")
+
     else:
         raise ValueError(f"Unknown shape: {shape}")
 
+    # --- 派生定数 ---
     constants["egg_center"] = egg_center
     constants["limit"] = 1e-9
+    constants["step_length"] = (constants["vsl"] * constants["sample_rate_hz"]) / 1000.0
+    constants["number_of_sperm"] = int(constants["sperm_conc"] * constants["vol"] / 1000)
+
     return constants
+
 
 
 def calc_spot_geometry(volume_ul: float, angle_deg: float) -> tuple[float, float, float]:

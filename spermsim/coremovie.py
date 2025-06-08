@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 # draw_medium は tools.plot_utils 側が cube/spot など全ての形状に対応している
 # ためそちらを利用する
-from tools.plot_utils import draw_medium
-from tools.visual_utils import draw_egg_3d  # 必要に応じて調整
+# draw_medium, draw_egg_3d は plot_utils に統合済み
+from tools.plot_utils import draw_medium, draw_egg_3d
 
 def render_3d_movie(
     trajs: np.ndarray,
