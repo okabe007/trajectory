@@ -1,72 +1,57 @@
-diff --git a/tools/plot_utils.py b/tools/plot_utils.py
-index 5eab3e2c6966cf7a644106a8c0dafe92f4baecac..c3e8240bdb65232a8c41793132af92d61d6f09a4 100644
---- a/tools/plot_utils.py
-+++ b/tools/plot_utils.py
-@@ -42,64 +42,67 @@ def draw_medium(ax, constants: dict):
-             [(x_max, y_min, z_min), (x_max, y_max, z_min), (x_min, y_max, z_min),
-              (x_min, y_min, z_max), (x_max, y_min, z_max), (x_max, y_max, z_max),
-              (x_min, y_max, z_max), (x_min, y_min, z_max)]
-         ):
-             ax.plot([s[0], e[0]], [s[1], e[1]], [s[2], e[2]], color="gray", alpha=0.5)
+diff --git a/core/engine.py b/core/engine.py
+index a6f4ec4f2a687951c568c8dcea463f5613eaa734..75b45d96166a98bda1c643748d8770810c389587 100644
+--- a/core/engine.py
++++ b/core/engine.py
+@@ -180,50 +180,52 @@ class SpermSimulation:
  
- def draw_egg_3d(ax, egg_pos, radius, *, color="yellow", alpha=0.6):
-     u, v = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
-     x = radius * np.cos(u) * np.sin(v) + egg_pos[0]
-     y = radius * np.sin(u) * np.sin(v) + egg_pos[1]
-     z = radius * np.cos(v) + egg_pos[2]
-     ax.plot_surface(x, y, z, color=color, alpha=alpha, edgecolor="none")
  
- def plot_2d_trajectories(trajs_um, constants, save_path=None, show=True, max_sperm=None):
-     x_min, x_max = constants["x_min"], constants["x_max"]
-     y_min, y_max = constants["y_min"], constants["y_max"]
-     z_min, z_max = constants["z_min"], constants["z_max"]
-     trajs_mm = trajs_um.astype(float) / 1000.0
-     fig, axs = plt.subplots(1, 3, figsize=(12, 4))
-     shape = constants.get('shape', 'cube').lower()
-     if shape == "drop":
-         r = constants["drop_r"]
-         axs[0].add_patch(Circle((0.0, 0.0), r, color="pink", alpha=0.3))
-         axs[1].add_patch(Circle((0.0, 0.0), r, color="pink", alpha=0.3))
-         axs[2].add_patch(Circle((0.0, 0.0), r, color="pink", alpha=0.3))
-+        print(f"[DEBUG] draw drop medium radius={r}")
-     elif shape == "spot":
-         R = constants["spot_r"]
-         b_r = constants["spot_bottom_r"]
-         b_h = constants["spot_bottom_height"]
-         x_vals = np.linspace(-b_r, b_r, 200)
-         z_vals = np.sqrt(np.clip(R**2 - x_vals**2, 0.0, None))
-         axs[0].add_patch(Circle((0.0, 0.0), b_r, color="pink", alpha=0.3))
-         axs[1].fill_between(x_vals, b_h, z_vals, color="pink", alpha=0.3)
-         axs[2].fill_between(x_vals, b_h, z_vals, color="pink", alpha=0.3)
-+        print(f"[DEBUG] draw spot medium bottom_r={b_r} bottom_h={b_h}")
-     egg_center = constants["egg_center"]
-     egg_r = constants["gamete_r"]
-     axs[0].add_patch(Circle((egg_center[0], egg_center[1]), egg_r, facecolor="yellow", alpha=0.6, edgecolor="gray"))
-     axs[1].add_patch(Circle((egg_center[0], egg_center[2]), egg_r, facecolor="yellow", alpha=0.6, edgecolor="gray"))
-     axs[2].add_patch(Circle((egg_center[1], egg_center[2]), egg_r, facecolor="yellow", alpha=0.6, edgecolor="gray"))
-+    print(f"[DEBUG] draw egg center={egg_center} radius={egg_r}")
-     if max_sperm is None:
-         max_sperm = trajs_mm.shape[0]
-     for s in range(min(max_sperm, trajs_mm.shape[0])):
-         axs[0].plot(trajs_mm[s, :, 0], trajs_mm[s, :, 1], linewidth=0.6)
-         axs[1].plot(trajs_mm[s, :, 0], trajs_mm[s, :, 2], linewidth=0.6)
-         axs[2].plot(trajs_mm[s, :, 1], trajs_mm[s, :, 2], linewidth=0.6)
-     for ax, title, xlab, ylab, xlim, ylim in zip(
-         axs,
-         ["XY (mm)", "XZ (mm)", "YZ (mm)"],
-         ["X (mm)", "X (mm)", "Y (mm)"],
-         ["Y (mm)", "Z (mm)", "Z (mm)"],
-         [(x_min, x_max), (x_min, x_max), (y_min, y_max)],
-         [(y_min, y_max), (z_min, z_max), (z_min, z_max)]
-     ):
-         ax.set_title(title)
-         ax.set_xlim(xlim)
-         ax.set_ylim(ylim)
-         ax.set_xlabel(xlab)
-         ax.set_ylabel(ylab)
-         ax.set_aspect('equal')
-         ax.grid(True, linestyle='--', linewidth=0.5, alpha=0.5)
-     fig.tight_layout()
-     if save_path:
-         fig.savefig(save_path)
-         try:
+     def run(self, constants: dict, result_dir: str, save_name: str, save_flag: bool = False):
+         # 派生変数の再計算（引数が更新されていた場合に備えて）
+         constants = calculate_derived_constants(constants)
+         print("[DEBUG] run() 開始: constants =", constants)
+ 
+         # self.trajectory をこの中で生成するようにしておくこと
+         self.trajectory = self.simulate(constants)  # ← simulate() は self 内部で定義されている仮定
+ 
+         # 保存オプションが有効な場合
+         if save_flag:
+             save_path = os.path.join(result_dir, save_name + ".npy")
+             np.save(save_path, self.trajectory)
+             print(f"[DEBUG] 軌跡データを {save_path} に保存しました")
+ 
+         # 表示モードの形式を整える（タプルやリストのまま来ることがある）
+         display_mode = constants.get("display_mode", "2D")
+         if isinstance(display_mode, (list, tuple)):
+             display_mode = display_mode[0]
+         display_mode = str(display_mode).strip().lower()
+ 
+         # 描画
+         if display_mode == "2d":
+             plot_2d_trajectories(self.trajectory, constants)
++        elif display_mode == "3d":
++            plot_3d_trajectories(self.trajectory, constants)
+         elif display_mode == "movie":
+             draw_3d_movies(self.trajectory, constants)
+         else:
+             print(f"[WARNING] 未対応の表示モード: {display_mode}")
+ 
+     def is_vector_meeting_egg(self, base_position, temp_position, egg_center, gamete_r):
+         vector = temp_position - base_position
+         # if LA.norm(vector) < 1e-9:
+         #     raise RuntimeError("zzz")
+         distance_base = LA.norm(base_position - egg_center)
+         distance_tip = LA.norm(temp_position - egg_center)
+         if distance_base <= gamete_r or distance_tip <= gamete_r:
+             return True
+         f = base_position - egg_center
+         a = vector @ vector
+         b = 2 * (f @ vector)
+         c = f @ f - gamete_r**2
+         discriminant = b**2 - 4*a*c
+         if discriminant < 0:
+             return False
+         sqrt_discriminant = np.sqrt(discriminant)
+         t1 = (-b - sqrt_discriminant) / (2*a)
+         t2 = (-b + sqrt_discriminant) / (2*a)
+         if (0 <= t1 <= 1) or (0 <= t2 <= 1):
+             return True

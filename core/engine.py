@@ -202,6 +202,8 @@ class SpermSimulation:
         # 描画
         if display_mode == "2d":
             plot_2d_trajectories(self.trajectory, constants)
+        elif display_mode == "3d":
+            plot_3d_trajectories(self.trajectory, constants)
         elif display_mode == "movie":
             draw_3d_movies(self.trajectory, constants)
         else:
