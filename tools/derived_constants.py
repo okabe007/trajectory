@@ -1,28 +1,32 @@
 import numpy as np
 import math
 
-def calculate_derived_constants(raw_constants):
-    import math
-    import numpy as np
-    from tools.geometry_utils import calc_spot_geometry  # 必要に応じて調整
+# ✅ インライン化した関数（仕様維持）
+def calc_spot_geometry(vol_mm3: float, angle_deg: float):
+    """
+    spot（球冠）形状の体積と角度から、球の半径、底面半径、底面高さを返す。
+    """
+    theta = math.radians(angle_deg)
+    h = (3 * vol_mm3 / (math.pi * (1 - math.cos(theta)) ** 2 * (2 + math.cos(theta)))) ** (1/3)
+    R = h / (1 - math.cos(theta))
+    r = R * math.sin(theta)
+    return R, r, h
 
+def calculate_derived_constants(raw_constants):
     constants = raw_constants.copy()
     shape = constants.get("shape", "cube").lower()
     constants["shape"] = shape
     egg_localization = constants.get("egg_localization", "center")
     vol = float(constants.get("vol", 0.0))  # μL = mm³
-    sperm_conc = float(constants.get("sperm_conc", 0.0))  # cells/mL
+    sperm_conc = float(constants.get("sperm_conc", 0.0))  # ✅ これを必ず追加！
 
-    gamete_r_um = float(constants.get("gamete_r", 50.0))
-    gamete_r_mm = gamete_r_um / 1000.0
-    constants["gamete_r"] = gamete_r_mm
+    constants["gamete_r"] = float(constants["gamete_r"]) / 1000.0  # ← これで完結
+    # mm変換（この1行のみ）
 
-    # ✅ drop_r を vol から導出（球体仮定）
     if shape == "drop":
         r_mm = ((3.0 * vol) / (4.0 * math.pi)) ** (1.0 / 3.0)
         constants["drop_r"] = r_mm
 
-    # ✅ spotジオメトリ（保持）
     if shape == "spot":
         angle_deg = float(constants.get("spot_angle", 0.0))
         spot_r_mm, bottom_r_mm, bottom_h_mm = calc_spot_geometry(vol, angle_deg)
@@ -34,7 +38,8 @@ def calculate_derived_constants(raw_constants):
         edge = vol ** (1.0 / 3.0)
         constants["edge"] = edge
 
-    constants["step_length"] =float(constants["vsl"])/float(constants["sample_rate_hz"])/1000
+    constants["step_length"] = float(constants["vsl"]) / float(constants["sample_rate_hz"]) / 1000
+
 
 
     # ✅ 空間範囲の設定
@@ -43,7 +48,7 @@ def calculate_derived_constants(raw_constants):
         constants.update(
             x_min=-half, x_max=half,
             y_min=-half, y_max=half,
-            z_min=0.0,   z_max=constants["edge"]
+            z_min=-half, z_max=half
         )
     elif shape == "drop":
         r = constants["drop_r"]
@@ -61,23 +66,15 @@ def calculate_derived_constants(raw_constants):
             y_min=-b_r, y_max=b_r,
             z_min=h,    z_max=R
         )
-    else:
-        fallback = vol ** (1.0 / 3.0)
-        half = fallback / 2
-        constants.update(
-            x_min=-half, x_max=half,
-            y_min=-half, y_max=half,
-            z_min=0.0,   z_max=fallback
-        )
 
     # ✅ egg_center 計算（既存仕様維持）
     if shape == "cube":
         if egg_localization == "center":
             egg_center = np.array([0.0, 0.0, 0.0])
         elif egg_localization == "bottom_center":
-            egg_center = np.array([0.0, 0.0, constants["z_min"] + gamete_r_mm])
+            egg_center = np.array([0.0, 0.0, constants["z_min"] + constants["gamete_r"]])
         elif egg_localization == "bottom_edge":
-            egg_center = np.array([0.0, constants["y_min"] + gamete_r_mm, constants["z_min"] + gamete_r_mm])
+            egg_center = np.array([0.0, constants["y_min"] + constants["gamete_r"], constants["z_min"] + constants["gamete_r"]])
         else:
             raise ValueError(f"Unsupported egg_localization for cube: {egg_localization}")
 
@@ -85,7 +82,7 @@ def calculate_derived_constants(raw_constants):
         if egg_localization == "center":
             egg_center = np.array([0.0, 0.0, 0.0])
         elif egg_localization == "bottom_center":
-            egg_center = np.array([0.0, 0.0, constants["z_min"] + gamete_r_mm])
+            egg_center = np.array([0.0, 0.0, constants["z_min"] + constants["gamete_r"]])  # ← ✅
         else:
             raise ValueError(f"Unsupported egg_localization for drop: {egg_localization}")
 
@@ -94,24 +91,19 @@ def calculate_derived_constants(raw_constants):
             z_mid = (constants["z_min"] + constants["z_max"]) / 2
             egg_center = np.array([0.0, 0.0, z_mid])
         elif egg_localization == "bottom_center":
-            egg_center = np.array([0.0, 0.0, constants["z_min"] + gamete_r_mm])
+            egg_center = np.array([0.0, 0.0, constants["z_min"] + constants["gamete_r"]])
         elif egg_localization == "bottom_edge":
             R = constants["spot_r"]
-            r = gamete_r_mm
+            r = constants["gamete_r"]
             x_edge = math.sqrt(4 * R * r)
-            egg_center = np.array([x_edge, 0.0, constants["z_min"] + gamete_r_mm])
+            egg_center = np.array([x_edge, 0.0, constants["z_min"] + constants["gamete_r"]])
         else:
             raise ValueError(f"Unsupported egg_localization for spot: {egg_localization}")
-    else:
-        raise ValueError(f"Unknown shape: {shape}")
 
     constants["egg_center"] = egg_center
-
     # ✅ number_of_sperm 計算を追加（テスト対応）
-    if vol > 0.0 and sperm_conc > 0.0:
-        number_of_sperm = int(round(vol * sperm_conc / 1000.0))
-        constants["number_of_sperm"] = number_of_sperm
-
+    number_of_sperm = int(round(vol * sperm_conc / 1000.0))
+    constants["number_of_sperm"] = number_of_sperm
     constants["limit"] = 1e-9
     return constants
 

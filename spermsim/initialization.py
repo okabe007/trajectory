@@ -8,6 +8,8 @@ import math
 import time
 from pathlib import Path
 from tools.ini_handler import save_config, load_config
+from tools.derived_constants import calculate_derived_constants
+from core.engine import SpermSimulation
 
 
 # プロジェクトのルート（trajectory_reboot）を sys.path に追加
@@ -53,51 +55,38 @@ def get_seed(seed_input: str) -> int:
     if seed_input == "None":
         return int(time.time() * 1000) % (2**32)
     return int(seed_input)
+import configparser
+import os
+
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), "..", "sperm_config.ini")
+
+PARAM_ORDER = [
+    "shape", "spot_angle", "vol", "sperm_conc", "vsl", "deviation",
+    "surface_time", "egg_localization", "gamete_r", "sim_min",
+    "sample_rate_hz", "seed_number", "sim_repeat", "display_mode"
+]
+
 def save_config(values: dict) -> None:
     cfg = configparser.ConfigParser()
-    ordered = {}
+    cfg["parameters"] = {}
+
     for k in PARAM_ORDER:
-        if k not in values:
-            continue
-        v = values[k]
-        if k == "display_mode":
-            ordered[k] = ",".join(v) if isinstance(v, list) else str(v)
-        else:
-            ordered[k] = str(v)
-    # 保存対象外のキーもまとめて保存
-    for k in sorted(values.keys()):
-        if k in ordered or k in PARAM_ORDER:
-            continue
-        ordered[k] = str(values[k])
-    cfg["simulation"] = ordered
+        if k in values:
+            v = values[k]
+            if k == "gamete_r":
+                v = float(v) * 1000.0  # mm → µm で保存
+            if k == "display_mode":
+                if isinstance(v, (list, tuple)):
+                    v = v[0]
+                v = str(v).strip()
+            cfg["parameters"][k] = str(v)
+
+    # ✅ ここが最重要：実際にファイルへ保存する
     with open(CONFIG_PATH, "w") as f:
         cfg.write(f)
-def load_config() -> dict:
-    if not os.path.exists(CONFIG_PATH):
-        save_config(default_values)
-        return default_values.copy()
+    print(f"[DEBUG] sperm_config.ini に保存しました → {CONFIG_PATH}")
 
-    cfg = configparser.ConfigParser()
-    cfg.read(CONFIG_PATH)
-    values = default_values.copy()
-    c = cfg["simulation"]
 
-    # 型を安全に解釈
-    for k in PARAM_ORDER:
-        raw = c.get(k, str(default_values[k]))
-        try:
-            if k in ["vsl", "spot_angle", "gamete_r", "sperm_conc",
-                     "vol", "sample_rate_hz", "sim_min"]:
-                values[k] = float(raw)
-            elif k == "sim_repeat":
-                values[k] = int(float(raw))
-            elif k == "display_mode":
-                values[k] = [v for v in raw.split(",") if v]
-            else:
-                values[k] = raw
-        except Exception:
-            values[k] = raw
-    return values
 
 import math
 import numpy as np
@@ -238,11 +227,43 @@ class SimApp:
 
         # 各ウィジェットを配置
         self._create_widgets(self.scroll_frame)
-        self._restore_from_config()  # 値を復元
+        self._restore_from_ini()  # 値を復元
         ttk.Checkbutton
+
+        print("[DEBUG] 読み込んだ設定内容（config_data）:")
+        for k, v in self.config_data.items():
+            print(f"  {k} = {v}")
     # ---------------------------------------------------------------------
     # ウィジェット生成
     # ---------------------------------------------------------------------
+    def _restore_from_ini(self, ini_path="sperm_config.ini"):
+        config_data = load_config(ini_path)
+        if config_data is None:
+            return
+        for key, value in config_data.items():
+            if key not in self.tk_vars:
+                continue
+            self.tk_vars[key].set(value)
+    # def _load_config(self, filename: str) -> dict:
+    #     import configparser
+    #     config = configparser.ConfigParser()
+    #     config.read(filename)
+
+    #     config_dict = {}
+    #     if 'DEFAULT' in config:
+    #         for key in config['DEFAULT']:
+    #             config_dict[key] = config['DEFAULT'][key]
+
+    #     return config_dict
+
+    # def _save_config(self, config_dict: dict, filename: str):
+    #     import configparser
+    #     config = configparser.ConfigParser()
+    #     config["DEFAULT"] = {key: str(value) for key, value in config_dict.items()}
+    #     with open(filename, 'w') as configfile:
+    #         config.write(configfile)
+
+
     def _create_widgets(self, parent: ttk.Frame) -> None:
         # --- shape -------------------------------------------------------
         self.tk_vars["shape"] = tk.StringVar()
@@ -365,7 +386,15 @@ class SimApp:
         # 念のために文字列変換と空白削除
         display_mode = str(display_mode).strip().replace('(', '').replace(')', '').replace(',', '').replace("'", "").replace('"', '')
 
+        display_mode = self.config_data.get('display_mode', '2D')
+
+        # ✅ リストやタプルだった場合に文字列に変換
+        if isinstance(display_mode, (list, tuple)):
+            display_mode = display_mode[0]
+
+        display_mode = str(display_mode).strip().lower()  # "movie" や "3d" の整形
         self.tk_vars["display_mode"] = tk.StringVar(value=display_mode)
+
 
         ttk.Label(parent, text="display_mode:").pack(anchor="w", padx=10, pady=(10, 0))
         f_disp = ttk.Frame(parent)
@@ -396,81 +425,46 @@ class SimApp:
     # 保存＆シミュレーション実行
     # ---------------------------------------------------------------------
     
+
     def _on_save(self):
-        """Save settings and immediately run the simulation."""
-        import time
         from tools.derived_constants import calculate_derived_constants
         from tools.ini_handler import save_config
-        from core.simulation_core import SpermSimulation
 
-        # GUI フォームから値を取得
+        # GUIフォームから値を取得
         constants = {key: var.get() for key, var in self.tk_vars.items()}
+        print("[DEBUGggg] GUIから取得した display_mode =", constants.get("display_mode"))
+        # --- 数値変換 ---
+        constants["gamete_r"] = float(constants["gamete_r"])
+        constants["vol"] = float(constants["vol"])
+        constants["vsl"] = float(constants["vsl"])
+        constants["deviation"] = float(constants["deviation"])
+        constants["surface_time"] = float(constants["surface_time"])
+        constants["sperm_conc"] = float(constants["sperm_conc"])
+        constants["spot_angle"] = float(constants["spot_angle"])
+        constants["sample_rate_hz"] = float(constants["sample_rate_hz"])
+        constants["sim_min"] = float(constants["sim_min"])
+        constants["sim_repeat"] = int(constants["sim_repeat"])
+        constants["seed_number"] = int(constants["seed_number"]) if constants["seed_number"] != "None" else "None"
 
-        # seed_number の補正（"None" の場合は現在時刻から生成）
-        seed_raw = constants.get("seed_number", "None")
-        if seed_raw == "None":
-            constants["seed_number"] = int(time.time() * 1000) % (2**32)
-        else:
-            constants["seed_number"] = int(seed_raw)
+        # --- display_mode を正規化（例: ["Movie"] → "Movie"） ---
+        raw_mode = constants.get("display_mode", "2D")
+        while isinstance(raw_mode, list) or isinstance(raw_mode, tuple):
+            raw_mode = raw_mode[0]
+        constants["display_mode"] = str(raw_mode).strip("()'\" ").lower()
 
-        # 派生定数を計算
+
+        # --- 派生変数計算 ---
         constants = calculate_derived_constants(constants)
 
-        # ini ファイルに保存
+        # --- 設定を保存 ---
         save_config(constants)
         print("[SimApp] 設定を sperm_config.ini に保存しました")
+        print(f"[DEBUG] 保存された display_mode: {constants['display_mode']}")
 
-        # --- シミュレーション実行 ---------------------------------------
-        sim = SpermSimulation(constants)
-        result_dir = "results"
-        os.makedirs(result_dir, exist_ok=True)
-        sim.run(constants, result_dir, "simulation_result", save_flag=True)
-        sim.plot_trajectories()
-        sim.plot_movie_trajectories()
+        # --- GUI終了 ---
+        self.root.destroy()
 
-        # フラグを立てて終了（エントリーポイント側で再実行させない）
-        self.simulation_ran = True
-        try:
-            self.root.destroy()
-        except Exception:
-            pass
 
-    def _on_save_and_exit(self):
-        """Save, run the simulation and close the window."""
-        self._on_save()
-        try:
-            self.root.destroy()
-        except Exception:
-            pass
-
-    # ---------------------------------------------------------------------
-    # 起動時に .ini から各 Tk 変数を復元
-    # ---------------------------------------------------------------------
-    def _restore_from_config(self) -> None:
-        for k, var in self.tk_vars.items():
-            if k not in self.config_data:
-                continue
-            v = self.config_data[k]
-            try:
-                if isinstance(var, tk.DoubleVar):
-                    val = float(v)
-                    if k == "vsl":
-                        val *= 1000.0  # mm/s → µm/s
-                    elif k == "gamete_r":
-                        val *= 1000.0  # mm  → µm
-                    var.set(val)
-                elif isinstance(var, tk.IntVar):
-                    var.set(int(float(v)))
-                else:
-                    var.set(str(v))
-            except Exception:
-                var.set(v)
-        # display_mode
-        modes = self.config_data.get("display_mode", [])
-        if isinstance(modes, list) and modes:
-            self.tk_vars["display_mode"].set(modes[0])
-        elif isinstance(modes, str):
-            self.tk_vars["display_mode"].set(modes)
 # ---------------------------------------------------------------------------
 # エントリーポイント
 # ---------------------------------------------------------------------------

@@ -4,7 +4,7 @@ from tkinter import ttk
 import configparser
 import numpy as np
 import math
-from core.simulation_core import SpermSimulation
+from core.engine import SpermSimulation
 from tools.plot_utils import plot_2d_trajectories # plot_3d_trajectories
 from tools.derived_constants import calculate_derived_constants
 import sys

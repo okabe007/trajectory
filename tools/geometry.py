@@ -3,32 +3,6 @@ from numpy import linalg as LA
 from typing import Dict      # ★ この行を追加
 from typing import Tuple
 
-# def _io_check_drop(
-#     position: np.ndarray, constants: dict, base_position: np.ndarray
-# ) -> str:
-#     """Return in/out status for drop shape with extended boundary check."""
-
-#     r = constants.get("drop_r", 0.0)
-#     limit = constants.get("limit", 1e-9)
-
-#     dist = np.linalg.norm(position)
-
-#     if dist > r + limit:
-#         return "outside"
-#     if dist < r - limit:
-#         return "inside"
-
-#     # Near the border, extend the vector from ``base_position``
-#     # to ``position`` and re-evaluate.
-#     vector = position - base_position
-#     extended_position = base_position + vector * 1.2
-#     extended_dist = np.linalg.norm(extended_position)
-
-#     if extended_dist <= r:
-#         return "inside"
-#     return "outside"
-
-
 def bend_along_sphere_surface(vec: np.ndarray, normal: np.ndarray, angle_rad: float) -> np.ndarray:
     """
     接線ベクトル `vec` を、球面の法線 `normal` に沿って `angle_rad` ラジアンだけ
@@ -151,26 +125,7 @@ class BaseShape:
     def initial_position(self):
         raise NotImplementedError
 
-# class CubeShape(BaseShape):
-#     def initial_position(self):
-#         x_min, x_max, y_min, y_max, z_min, z_max = self.get_limits()
-#         return np.random.uniform([x_min, y_min, z_min], [x_max, y_max, z_max])
 
-#     def io_check(self, point):
-#         # get_limitsを必ず使う
-#         x_min, x_max, y_min, y_max, z_min, z_max = self.get_limits()
-#         eps = 1e-9
-#         inside = (x_min < point[0] < x_max) and (y_min < point[1] < y_max) and (z_min < point[2] < z_max)
-#         if inside:
-#             return IOStatus.INSIDE, None
-#         on_edge = (
-#             np.isclose([point[0]], [x_min, x_max], atol=eps).any() or
-#             np.isclose([point[1]], [y_min, y_max], atol=eps).any() or
-#             np.isclose([point[2]], [z_min, z_max], atol=eps).any()
-#         )
-#         if on_edge:
-#             return IOStatus.TEMP_ON_EDGE, None
-#         return IOStatus.OUTSIDE, None
 class CubeShape(BaseShape):
     """
     立方体形状

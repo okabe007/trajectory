@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Iterator, Tuple, Dict
-from core.simulation import SpermSimulation
+from core.engine import SpermSimulation
 from reflection.scenarios import cube_scenarios, drop_scenarios, spot_scenarios
 
 def run_all(shape: str, constants: Dict) -> Iterator[Tuple[str, SpermSimulation]]:

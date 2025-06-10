@@ -1,40 +1,51 @@
 import os
 import sys
 
-# ✅ ① プロジェクトルートを sys.path に追加（trajectory_reboot）
+# プロジェクトルート（trajectory_reboot）を取得
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+# パスに追加（重複追加を防ぐ）
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
-# ✅ ② GUIと設定管理の import
 from tkinter import Tk
 from spermsim.initialization import SimApp
 from tools.ini_handler import load_config
-from tools.derived_constants import calculate_derived_constants
-
-# ✅ ③ シミュレーションクラス（SimulationEngine or SpermSimulation）
 from core.engine import SpermSimulation
 
+REQUIRED_KEYS = [
+    "drop_r", "step_length", "number_of_sperm",
+    "x_min", "x_max", "y_min", "y_max", "z_min", "z_max",
+    "egg_center", "limit"
+]
+
+def check_config_validity(constants: dict):
+    missing = [k for k in REQUIRED_KEYS if k not in constants]
+    if missing:
+        raise ValueError(
+            f"[ERROR] sperm_config.ini に以下の派生変数が含まれていません:\n{missing}\n"
+            "→ GUIで保存（[保存して終了] ボタン）を完了してください。"
+        )
 
 def main():
+    # 1. GUI 起動
     print("[ENTRY] GUIを起動します...")
     root = Tk()
     app = SimApp(root)
-    root.mainloop()
+    root.mainloop()  # GUIが閉じられるまで待機
 
+    # GUI内でシミュレーションが実行された場合はここで終了
     if getattr(app, "simulation_ran", False):
         print("[ENTRY] Simulation already executed from GUI. Exiting.")
         return
 
-    # 1. .ini 読み込み（一次変数のみ含まれる前提）
+    # 2. .ini 読み込み
     config_path = "sperm_config.ini"
     if not os.path.exists(config_path):
         raise FileNotFoundError("[ERROR] sperm_config.ini が見つかりません。保存して終了を押しましたか？")
 
     constants = load_config()
-
-    # 2. 二次変数の導出（egg_center, drop_r, x_min, ...）
-    constants = calculate_derived_constants(constants)
+    check_config_validity(constants)
 
     # 3. シミュレーション実行
     result_dir = "results"
@@ -42,10 +53,10 @@ def main():
 
     sim = SpermSimulation(constants)
     sim.run(constants, result_dir, "simulation_result", save_flag=True)
-
-    # sim.plot_trajectories()
-    # sim.plot_movie_trajectories()
-
+    print("[DEBUG] plot_trajectories() を呼び出します")
+    sim.plot_trajectories()
+    print("[DEBUG] plot_trajectories() を完了しました")
+    sim.plot_movie_trajectories()
     print("[ENTRY] シミュレーション完了。")
 
 if __name__ == "__main__":

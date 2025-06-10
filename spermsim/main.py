@@ -27,7 +27,7 @@ from typing import Tuple
 # === 自作モジュール ===
 from tools.derived_constants import get_limits
 from tools.enums import IOStatus
-from core.simulation_core import SpermSimulation
+from core.engine import SpermSimulation
 
 # from spermsim.coremovie import render_3d_movie
 
@@ -58,7 +58,7 @@ def rotation_matrix_from_vectors(vec1, vec2):
 
 # --- 派生変数一元計算モジュールをインポート ---
 from tools.derived_constants import calculate_derived_constants
-from core.simulation import SpermSimulation as CoreSpermSimulation
+from core.engine import SpermSimulation as CoreSpermSimulation
 
 # --- ジオメトリ関連クラス/ファクトリ ---
 from .geometry import create_shape  # 必要ならself-import等は調整

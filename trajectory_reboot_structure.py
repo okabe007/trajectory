@@ -22,7 +22,7 @@ if __name__ == "__main__":
 
 from tools.config_loader import load_config
 from tools.derived_constants import calculate_derived_constants
-from core.simulation_core import SpermSimulation
+from core.engine import SpermSimulation
 import os
 
 def run_simulation_from_ini(ini_path="sperm_config.ini"):

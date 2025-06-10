@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def plot_2d_trajectories(traj: np.ndarray, max_sperm: int = 5):
+def plot_2d_trajectories(trajectories: np.ndarray, max_sperm: int = 5):
     """
     複数の精子軌跡をxy平面上にプロットする。
     
