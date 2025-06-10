@@ -131,8 +131,14 @@ class SimulationEngine:
 
         # 描画処理
         display_mode = self.constants.get("display_mode", "2D")
-        if display_mode == "2D":
+        if isinstance(display_mode, (list, tuple)):
+            display_mode = display_mode[0]
+        display_mode = str(display_mode).strip().lower()
+
+        if display_mode == "2d":
             plot_2d_trajectories(self.trajectory, self.constants)
+        elif display_mode == "3d":
+            plot_3d_trajectories(self.trajectory, self.constants)
         elif display_mode == "movie":
             draw_3d_movies(self.trajectory, self.constants)
         else:

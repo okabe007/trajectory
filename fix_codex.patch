@@ -1,57 +1,64 @@
-diff --git a/core/engine.py b/core/engine.py
-index a6f4ec4f2a687951c568c8dcea463f5613eaa734..75b45d96166a98bda1c643748d8770810c389587 100644
---- a/core/engine.py
-+++ b/core/engine.py
-@@ -180,50 +180,52 @@ class SpermSimulation:
+diff --git a/simcore/engine.py b/simcore/engine.py
+index 23e50500d3e3354806498b5ac3a74318956f646b..8453eba50ed6b825c3ecc12e57f5ec7e1df78a99 100644
+--- a/simcore/engine.py
++++ b/simcore/engine.py
+@@ -109,52 +109,58 @@ class SimulationEngine:
+                 elif status == IOStatus.ON_POLYGON:
+                     pass  # 上記drop内で処理済
+                 elif status in [IOStatus.REFLECT]:
+                     vec *= -1
+                 elif status in [IOStatus.STICK]:
+                     stick_status = int(hz)
+                 elif status in [IOStatus.BORDER, IOStatus.BOTTOM_OUT, IOStatus.SPOT_EDGE_OUT]:
+                     pass  # その場に留まる
+                 else:
+                     print(f"[WARNING] Unexpected status: {status}")
  
+                 self.trajectory[j, i] = pos
+                 self.vectors[j, i] = vec
  
-     def run(self, constants: dict, result_dir: str, save_name: str, save_flag: bool = False):
-         # 派生変数の再計算（引数が更新されていた場合に備えて）
-         constants = calculate_derived_constants(constants)
-         print("[DEBUG] run() 開始: constants =", constants)
+         print("[DEBUG] 初期位置数:", len(self.initial_position))
+         print("[DEBUG] 精子数:", self.number_of_sperm)
+         self.trajectories = self.trajectory  # 外部用
  
-         # self.trajectory をこの中で生成するようにしておくこと
-         self.trajectory = self.simulate(constants)  # ← simulate() は self 内部で定義されている仮定
- 
-         # 保存オプションが有効な場合
+         # 保存処理
          if save_flag:
-             save_path = os.path.join(result_dir, save_name + ".npy")
-             np.save(save_path, self.trajectory)
-             print(f"[DEBUG] 軌跡データを {save_path} に保存しました")
+             os.makedirs(result_dir, exist_ok=True)
+             np.save(os.path.join(result_dir, f"{save_name}.npy"), self.trajectory)
  
-         # 表示モードの形式を整える（タプルやリストのまま来ることがある）
-         display_mode = constants.get("display_mode", "2D")
-         if isinstance(display_mode, (list, tuple)):
-             display_mode = display_mode[0]
-         display_mode = str(display_mode).strip().lower()
- 
-         # 描画
-         if display_mode == "2d":
-             plot_2d_trajectories(self.trajectory, constants)
+         # 描画処理
+         display_mode = self.constants.get("display_mode", "2D")
+-        if display_mode == "2D":
++        if isinstance(display_mode, (list, tuple)):
++            display_mode = display_mode[0]
++        display_mode = str(display_mode).strip().lower()
++
++        if display_mode == "2d":
+             plot_2d_trajectories(self.trajectory, self.constants)
 +        elif display_mode == "3d":
-+            plot_3d_trajectories(self.trajectory, constants)
++            plot_3d_trajectories(self.trajectory, self.constants)
          elif display_mode == "movie":
-             draw_3d_movies(self.trajectory, constants)
+             draw_3d_movies(self.trajectory, self.constants)
          else:
              print(f"[WARNING] 未対応の表示モード: {display_mode}")
  
-     def is_vector_meeting_egg(self, base_position, temp_position, egg_center, gamete_r):
-         vector = temp_position - base_position
-         # if LA.norm(vector) < 1e-9:
-         #     raise RuntimeError("zzz")
-         distance_base = LA.norm(base_position - egg_center)
-         distance_tip = LA.norm(temp_position - egg_center)
-         if distance_base <= gamete_r or distance_tip <= gamete_r:
-             return True
-         f = base_position - egg_center
-         a = vector @ vector
-         b = 2 * (f @ vector)
-         c = f @ f - gamete_r**2
-         discriminant = b**2 - 4*a*c
-         if discriminant < 0:
-             return False
-         sqrt_discriminant = np.sqrt(discriminant)
-         t1 = (-b - sqrt_discriminant) / (2*a)
-         t2 = (-b + sqrt_discriminant) / (2*a)
-         if (0 <= t1 <= 1) or (0 <= t2 <= 1):
-             return True
+     def _select_mode(self):
+         if self.shape == "cube":
+             return CubeMode(self.constants)
+         elif self.shape == "drop":
+             return DropMode(self.constants)
+         elif self.shape == "spot":
+             return SpotMode(self.constants)
+         elif self.shape == "reflection":
+             return ReflectionMode(self.constants)
+         else:
+             raise ValueError(f"[ERROR] Unknown shape mode: {self.shape}")
+ 
+     
+     def simulate(self, on_progress=None):
+         initial_position = self.constants['initial_position']
+         trajectories = np.full((self.number_of_sperm, self.number_of_steps, 3), np.nan)
+         vectors = np.zeros((self.number_of_sperm, self.number_of_steps, 3))
+ 
+         for j in range(self.number_of_sperm):
+             position = self._generate_initial_position()
