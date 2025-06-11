@@ -20,8 +20,8 @@ def calculate_derived_constants(raw_constants):
     vol = float(constants.get("vol", 0.0))  # μL = mm³
     sperm_conc = float(constants.get("sperm_conc", 0.0))  # ✅ これを必ず追加！
 
-    constants["gamete_r"] = float(constants["gamete_r"]) / 1000.0  # ← これで完結
-    # mm変換（この1行のみ）
+    # gamete_r is already provided in millimeters
+    constants["gamete_r"] = float(constants["gamete_r"])
 
     if shape == "drop":
         r_mm = ((3.0 * vol) / (4.0 * math.pi)) ** (1.0 / 3.0)

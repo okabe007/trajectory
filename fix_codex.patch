@@ -1,57 +1,56 @@
-diff --git a/tools/plot_utils.py b/tools/plot_utils.py
-index cffe33557dbd868f8d4370ed3b142e4c95a4ef95..a44557794f9fc37c8d04407830b23b844be1d423 100644
---- a/tools/plot_utils.py
-+++ b/tools/plot_utils.py
-@@ -149,51 +149,51 @@ def draw_egg_2d(ax, constants: dict, view: str = "xy"):
+diff --git a/tools/derived_constants.py b/tools/derived_constants.py
+index 22cc36fc3f7d56d476248d3d4ad0367112b2d03c..7da84953ca4c0c69e6a5b3b4a3e2ae4f9b321cb2 100644
+--- a/tools/derived_constants.py
++++ b/tools/derived_constants.py
+@@ -1,49 +1,49 @@
+ import numpy as np
+ import math
  
-     if view == "xy":
-         x, y = center[0], center[1]
-     elif view == "xz":
-         x, y = center[0], center[2]
-     elif view == "yz":
-         x, y = center[1], center[2]
-     else:
-         raise ValueError(f"Invalid view '{view}'. Must be 'xy', 'xz', or 'yz'.")
- 
-     egg = patches.Circle((x, y), r, color='gold', alpha=0.8, zorder=10)
-     ax.add_patch(egg)
- def draw_egg_3d(ax, egg_pos, radius, *, color="yellow", alpha=0.6):
-     u, v = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
-     x = radius * np.cos(u) * np.sin(v) + egg_pos[0]
-     y = radius * np.sin(u) * np.sin(v) + egg_pos[1]
-     z = radius * np.cos(v) + egg_pos[2]
-     ax.plot_surface(x, y, z, color=color, alpha=alpha, edgecolor="none")
- 
- def plot_2d_trajectories(trajectory, constants, save_path=None, show=True, max_sperm=None):
+ # ✅ インライン化した関数（仕様維持）
+ def calc_spot_geometry(vol_mm3: float, angle_deg: float):
      """
-     trajectory: List[np.ndarray] or np.ndarray of shape (n_sperm, n_steps, 3)
-     constants: dict
+     spot（球冠）形状の体積と角度から、球の半径、底面半径、底面高さを返す。
      """
-     import numpy as np
--    trajectory = np.array(trajectory).astype(float) / 1000.0  # μm → mm 換算
-+    trajectory = np.array(trajectory).astype(float)
+     theta = math.radians(angle_deg)
+     h = (3 * vol_mm3 / (math.pi * (1 - math.cos(theta)) ** 2 * (2 + math.cos(theta)))) ** (1/3)
+     R = h / (1 - math.cos(theta))
+     r = R * math.sin(theta)
+     return R, r, h
  
-     fig, axs = plt.subplots(1, 3, figsize=(12, 4))
-     shape = constants.get('shape', 'cube').lower()
+ def calculate_derived_constants(raw_constants):
+     constants = raw_constants.copy()
+     shape = constants.get("shape", "cube").lower()
+     constants["shape"] = shape
+     egg_localization = constants.get("egg_localization", "center")
+     vol = float(constants.get("vol", 0.0))  # μL = mm³
+     sperm_conc = float(constants.get("sperm_conc", 0.0))  # ✅ これを必ず追加！
  
-     
-     if max_sperm is None:
-         max_sperm = trajectory.shape[0]
+-    constants["gamete_r"] = float(constants["gamete_r"]) / 1000.0  # ← これで完結
+-    # mm変換（この1行のみ）
++    # gamete_r is already provided in millimeters
++    constants["gamete_r"] = float(constants["gamete_r"])
  
-     # 背景メディウムと卵子を各投影に描画
-     for ax, view in zip(axs, ["xy", "xz", "yz"]):
-         draw_medium_2d(ax, constants, view=view)
-         draw_egg_2d(ax, constants, view=view)
+     if shape == "drop":
+         r_mm = ((3.0 * vol) / (4.0 * math.pi)) ** (1.0 / 3.0)
+         constants["drop_r"] = r_mm
  
-     # 軌跡描画
-     for s in range(min(max_sperm, trajectory.shape[0])):
-         axs[0].plot(trajectory[s, :, 0], trajectory[s, :, 1], linewidth=0.6)  # XY
-         axs[1].plot(trajectory[s, :, 0], trajectory[s, :, 2], linewidth=0.6)  # XZ
-         axs[2].plot(trajectory[s, :, 1], trajectory[s, :, 2], linewidth=0.6)  # YZ
+     if shape == "spot":
+         angle_deg = float(constants.get("spot_angle", 0.0))
+         spot_r_mm, bottom_r_mm, bottom_h_mm = calc_spot_geometry(vol, angle_deg)
+         constants["spot_r"] = spot_r_mm
+         constants["spot_bottom_r"] = bottom_r_mm
+         constants["spot_bottom_height"] = bottom_h_mm
  
-     # 軸範囲とアスペクト比の設定
-     x_min, x_max = constants["x_min"], constants["x_max"]
-     y_min, y_max = constants["y_min"], constants["y_max"]
-     z_min, z_max = constants["z_min"], constants["z_max"]
+     if shape == "cube":
+         edge = vol ** (1.0 / 3.0)
+         constants["edge"] = edge
  
-     x_range = x_max - x_min
+     constants["step_length"] = float(constants["vsl"]) / float(constants["sample_rate_hz"]) / 1000
+ 
+ 
+ 
+     # ✅ 空間範囲の設定
+     if shape == "cube":
+         half = constants["edge"] / 2
+         constants.update(
+             x_min=-half, x_max=half,
