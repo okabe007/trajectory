@@ -25,7 +25,7 @@ index 22cc36fc3f7d56d476248d3d4ad0367112b2d03c..7da84953ca4c0c69e6a5b3b4a3e2ae4f
      vol = float(constants.get("vol", 0.0))  # μL = mm³
      sperm_conc = float(constants.get("sperm_conc", 0.0))  # ✅ これを必ず追加！
  
--    constants["gamete_r"] = float(constants["gamete_r"]) / 1000.0  # ← これで完結
+-    constants["gamete_r"] = float(constants["gamete_r"])  # ← これで完結
 -    # mm変換（この1行のみ）
 +    # gamete_r is already provided in millimeters
 +    constants["gamete_r"] = float(constants["gamete_r"])
@@ -45,7 +45,7 @@ index 22cc36fc3f7d56d476248d3d4ad0367112b2d03c..7da84953ca4c0c69e6a5b3b4a3e2ae4f
          edge = vol ** (1.0 / 3.0)
          constants["edge"] = edge
  
-     constants["step_length"] = float(constants["vsl"]) / float(constants["sample_rate_hz"]) / 1000
+     constants["step_length"] = float(constants["vsl"]) / float(constants["sample_rate_hz"])
  
  
  

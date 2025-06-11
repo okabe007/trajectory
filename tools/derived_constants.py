@@ -38,7 +38,7 @@ def calculate_derived_constants(raw_constants):
         edge = vol ** (1.0 / 3.0)
         constants["edge"] = edge
 
-    constants["step_length"] = float(constants["vsl"]) / float(constants["sample_rate_hz"]) / 1000
+    constants["step_length"] = float(constants["vsl"]) / float(constants["sample_rate_hz"])
 
 
 
@@ -107,23 +107,22 @@ def calculate_derived_constants(raw_constants):
     constants["limit"] = 1e-9
     return constants
 
-def calc_spot_geometry(volume_ul: float, angle_deg: float) -> tuple[float, float, float]:
+def calc_spot_geometry(vol: float, angle_deg: float) -> tuple[float, float, float]:
     angle_rad = math.radians(angle_deg)
-    vol_um3 = volume_ul * 1e9
     def cap_volume(R: float) -> float:
         h = R * (1 - math.cos(angle_rad))
         return math.pi * h * h * (3 * R - h) / 3
     low = 0.0
-    high = max(vol_um3 ** (1 / 3), 1.0)
-    while cap_volume(high) < vol_um3:
+    high = max(vol ** (1 / 3), 1.0)
+    while cap_volume(high) < vol:
         high *= 2.0
     for _ in range(60):
         mid = (low + high) / 2.0
-        if cap_volume(mid) < vol_um3:
+        if cap_volume(mid) < vol:
             low = mid
         else:
             high = mid
-    R_um = (low + high) / 2.0
-    bottom_r_um = R_um * math.sin(angle_rad)
-    bottom_height_um = R_um * math.cos(angle_rad)
-    return R_um / 1000.0, bottom_r_um / 1000.0, bottom_height_um / 1000.0
+    R = (low + high) / 2.0
+    bottom_r = R * math.sin(angle_rad)
+    bottom_height = R * math.cos(angle_rad)
+    return R, bottom_r, bottom_height
