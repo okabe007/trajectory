@@ -49,7 +49,14 @@ def draw_egg_2d(ax, egg_center, egg_radius, plane='xy'):
     else:
         raise ValueError(f"Unsupported plane: {plane}. Use 'xy', 'xz', or 'yz'.")
 
-    egg_patch = Circle((cx, cy), egg_radius, facecolor='yellow', edgecolor='gray', alpha=0.6)
+    egg_patch = Circle(
+        (cx, cy),
+        egg_radius,
+        facecolor="yellow",
+        edgecolor="gray",
+        linewidth=0.8,
+        alpha=0.6,
+    )
     ax.add_patch(egg_patch)
     
 
@@ -58,4 +65,12 @@ def draw_egg_3d(ax, egg_center, radius):
     x = radius * np.cos(u) * np.sin(v) + egg_center[0]
     y = radius * np.sin(u) * np.sin(v) + egg_center[1]
     z = radius * np.cos(v) + egg_center[2]
-    ax.plot_surface(x, y, z, color='gold', alpha=0.8)
+    ax.plot_surface(
+        x,
+        y,
+        z,
+        color="gold",
+        alpha=0.8,
+        edgecolor="gray",
+        linewidth=0.5,
+    )

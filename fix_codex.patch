@@ -1,56 +1,57 @@
-diff --git a/tools/derived_constants.py b/tools/derived_constants.py
-index 22cc36fc3f7d56d476248d3d4ad0367112b2d03c..7da84953ca4c0c69e6a5b3b4a3e2ae4f9b321cb2 100644
---- a/tools/derived_constants.py
-+++ b/tools/derived_constants.py
-@@ -1,49 +1,49 @@
- import numpy as np
- import math
- 
- # ✅ インライン化した関数（仕様維持）
- def calc_spot_geometry(vol_mm3: float, angle_deg: float):
+diff --git a/tools/draw_medium_egg.py b/tools/draw_medium_egg.py
+index 4da466d6361a10fcc98b81beec0cdf3e3eb08266..5ee0d31dd89d52e5a3a4815ee9ca7c7139698f80 100644
+--- a/tools/draw_medium_egg.py
++++ b/tools/draw_medium_egg.py
+@@ -27,35 +27,50 @@ def draw_medium(ax, constants):
+         y = r * np.sin(u) * np.sin(v)
+         z = r * np.cos(v)
+         ax.plot_surface(x, y, z, color='pink', alpha=0.2)
+     # 他の shape（cube, spotなど）を描画したい場合はここに追記
+     
+ def draw_egg_2d(ax, egg_center, egg_radius, plane='xy'):
+     from matplotlib.patches import Circle 
      """
-     spot（球冠）形状の体積と角度から、球の半径、底面半径、底面高さを返す。
+     2D平面上に卵子（円）を描画する
+ 
+     Parameters:
+         ax: matplotlib.axes.Axes
+         egg_center: 卵子中心の3D座標 [x, y, z]
+         egg_radius: 半径（mm単位）
+         plane: 'xy', 'xz', 'yz' のいずれか（描画平面）
      """
-     theta = math.radians(angle_deg)
-     h = (3 * vol_mm3 / (math.pi * (1 - math.cos(theta)) ** 2 * (2 + math.cos(theta)))) ** (1/3)
-     R = h / (1 - math.cos(theta))
-     r = R * math.sin(theta)
-     return R, r, h
+     if plane == 'xy':
+         cx, cy = egg_center[0], egg_center[1]
+     elif plane == 'xz':
+         cx, cy = egg_center[0], egg_center[2]
+     elif plane == 'yz':
+         cx, cy = egg_center[1], egg_center[2]
+     else:
+         raise ValueError(f"Unsupported plane: {plane}. Use 'xy', 'xz', or 'yz'.")
  
- def calculate_derived_constants(raw_constants):
-     constants = raw_constants.copy()
-     shape = constants.get("shape", "cube").lower()
-     constants["shape"] = shape
-     egg_localization = constants.get("egg_localization", "center")
-     vol = float(constants.get("vol", 0.0))  # μL = mm³
-     sperm_conc = float(constants.get("sperm_conc", 0.0))  # ✅ これを必ず追加！
+-    egg_patch = Circle((cx, cy), egg_radius, facecolor='yellow', edgecolor='gray', alpha=0.6)
++    egg_patch = Circle(
++        (cx, cy),
++        egg_radius,
++        facecolor="yellow",
++        edgecolor="gray",
++        linewidth=0.8,
++        alpha=0.6,
++    )
+     ax.add_patch(egg_patch)
+     
  
--    constants["gamete_r"] = float(constants["gamete_r"])  # ← これで完結
--    # mm変換（この1行のみ）
-+    # gamete_r is already provided in millimeters
-+    constants["gamete_r"] = float(constants["gamete_r"])
- 
-     if shape == "drop":
-         r_mm = ((3.0 * vol) / (4.0 * math.pi)) ** (1.0 / 3.0)
-         constants["drop_r"] = r_mm
- 
-     if shape == "spot":
-         angle_deg = float(constants.get("spot_angle", 0.0))
-         spot_r_mm, bottom_r_mm, bottom_h_mm = calc_spot_geometry(vol, angle_deg)
-         constants["spot_r"] = spot_r_mm
-         constants["spot_bottom_r"] = bottom_r_mm
-         constants["spot_bottom_height"] = bottom_h_mm
- 
-     if shape == "cube":
-         edge = vol ** (1.0 / 3.0)
-         constants["edge"] = edge
- 
-     constants["step_length"] = float(constants["vsl"]) / float(constants["sample_rate_hz"])
- 
- 
- 
-     # ✅ 空間範囲の設定
-     if shape == "cube":
-         half = constants["edge"] / 2
-         constants.update(
-             x_min=-half, x_max=half,
+ def draw_egg_3d(ax, egg_center, radius):
+     u, v = np.mgrid[0:2*np.pi:20j, 0:np.pi:10j]
+     x = radius * np.cos(u) * np.sin(v) + egg_center[0]
+     y = radius * np.sin(u) * np.sin(v) + egg_center[1]
+     z = radius * np.cos(v) + egg_center[2]
+-    ax.plot_surface(x, y, z, color='gold', alpha=0.8)
++    ax.plot_surface(
++        x,
++        y,
++        z,
++        color="gold",
++        alpha=0.8,
++        edgecolor="gray",
++        linewidth=0.5,
++    )
