@@ -1,34 +1,62 @@
-diff --git a/README.md b/README.md
-index 58be7b68f42bee196af3a8f85c18533abde7ad47..3c7c682935402fb4bb3ceb2f0d3719383f4cd290 100644
---- a/README.md
-+++ b/README.md
-@@ -23,25 +23,29 @@
+diff --git a/core/engine.py b/core/engine.py
+index 153ca310a87563493821bfe46a5476e9fd473c55..0f1f50c84657b44d11805fa6bbd39ff0ee31cf58 100644
+--- a/core/engine.py
++++ b/core/engine.py
+@@ -184,51 +184,56 @@ class SpermSimulation:
+         constants = calculate_derived_constants(constants)
+         print("[DEBUG] run() 開始: constants =", constants)
  
- ### 1. 通常の環境で
+         # self.trajectory をこの中で生成するようにしておくこと
+         self.trajectory = self.simulate(constants)  # ← simulate() は self 内部で定義されている仮定
  
- ```bash
- git clone https://github.com/<your-username>/trajectory_reboot.git
- cd trajectory_reboot
- pip install -r requirements.txt
- nano README.md## 🚀 セットアップ方法（初回のみ）
+         # 保存オプションが有効な場合
+         if save_flag:
+             save_path = os.path.join(result_dir, save_name + ".npy")
+             np.save(save_path, self.trajectory)
+             print(f"[DEBUG] 軌跡データを {save_path} に保存しました")
  
- このプロジェクトを実行するには、Python の依存ライブラリをインストールする必要があります。
+         # 表示モードの形式を整える（タプルやリストのまま来ることがある）
+         display_mode = constants.get("display_mode", "2D")
+         if isinstance(display_mode, (list, tuple)):
+             display_mode = display_mode[0]
+         # 余計な記号を取り除いて小文字化する
+         display_mode = str(display_mode).strip(" ()'\" ,").lower()
  
- ### ✅ 1. 通常の Python 環境でのセットアップ方法
+         # 描画
+         if display_mode == "2d":
+             plot_2d_trajectories(self.trajectory, constants)
+         elif display_mode == "3d":
+             plot_3d_trajectories(self.trajectory, constants)
+         elif display_mode == "movie":
+-            draw_3d_movies(self.trajectory, constants)
++            from tools.path_config import ensure_save_dir
++            movie_dir = ensure_save_dir()
++            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
++            movie_path = os.path.join(movie_dir, f"{save_name}_{timestamp}.mp4")
++            draw_3d_movies(self.trajectory, constants, save_path=movie_path, show=True)
++            print(f"[INFO] Movie saved to {movie_path}")
+         else:
+             print(f"[WARNING] 未対応の表示モード: {display_mode}")
  
- ```bash
- pip install -r requirements.txt
- ```
- 
- ### 🏃‍♂️ シミュレーションの実行
- 
- パラメータ設定用GUIは `entry.py` から起動できます。GUIで設定を行い
- **Save settings and run simulation** ボタンを押すと、そのままシミュレーションが開始されます。
- 
- ```bash
- python entry.py
- ```
-+
-+### 🎥 Movie Output
-+
-+GUIで `display_mode` に `movie` を選択すると、シミュレーション終了後に3Dムービーが表示されます。生成されたファイルは `figs_&_movies` ディレクトリに自動保存されます。
+     def is_vector_meeting_egg(self, base_position, temp_position, egg_center, gamete_r):
+         vector = temp_position - base_position
+         # if LA.norm(vector) < 1e-9:
+         #     raise RuntimeError("zzz")
+         distance_base = LA.norm(base_position - egg_center)
+         distance_tip = LA.norm(temp_position - egg_center)
+         if distance_base <= gamete_r or distance_tip <= gamete_r:
+             return True
+         f = base_position - egg_center
+         a = vector @ vector
+         b = 2 * (f @ vector)
+         c = f @ f - gamete_r**2
+         discriminant = b**2 - 4*a*c
+         if discriminant < 0:
+             return False
+         sqrt_discriminant = np.sqrt(discriminant)
+         t1 = (-b - sqrt_discriminant) / (2*a)
+         t2 = (-b + sqrt_discriminant) / (2*a)
+         if (0 <= t1 <= 1) or (0 <= t2 <= 1):
+             return True
+         return False
+     
