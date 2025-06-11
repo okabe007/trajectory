@@ -1,36 +1,300 @@
-diff --git a/tools/path_config.py b/tools/path_config.py
-index 029d483834ec839ac1663367a84cb27adb91be62..41fb5004f4cc70ab1d5e4244ff84955933db0ec8 100644
---- a/tools/path_config.py
-+++ b/tools/path_config.py
-@@ -1,14 +1,31 @@
+diff --git a/spermsim/initialization.py b/spermsim/initialization.py
+index 5c4bde5d8e42708129210f889db868f385b94800..07ad99824461897fb9dd657a0cd9d06606abc254 100644
+--- a/spermsim/initialization.py
++++ b/spermsim/initialization.py
+@@ -20,104 +20,104 @@ if ROOT_DIR not in sys.path:
+ CONFIG_PATH = os.path.join(os.path.dirname(__file__), "sperm_config.ini")
+ 
+ # 保存時のキー順（GUI 表示順と合わせる）
+ PARAM_ORDER = [
+     "shape", "spot_angle", "vol", "sperm_conc", "vsl", "deviation",
+     "surface_time", "egg_localization", "gamete_r", "sim_min",
+     "sample_rate_hz", "seed_number", "sim_repeat", "display_mode",
+ ]
+ 
+ # デフォルト設定
+ PARAM_ORDER = [
+     "shape", "spot_angle", "vol", "sperm_conc", "vsl", "deviation",
+     "surface_time", "egg_localization", "gamete_r", "sim_min",
+     "sample_rate_hz", "seed_number", "sim_repeat", "display_mode",
+ ]
+ # デフォルト設定
+ default_values = {
+     "shape": "cube",
+     "spot_angle": 50.0,
+     "vol": 6.25,               # µL
+     "sperm_conc": 10_000.0,    # cells/mL
+     "vsl": 0.13,               # mm/s
+     "deviation": 0.4,
+     "surface_time": 2.0,
+     "egg_localization": "bottom_center",
+-    "gamete_r": 0.04,          # mm  (GUI 表示は µm)
++    "gamete_r": 0.04,          # mm
+     "sim_min": 1.0,            # min 実測値ではなく「分」→秒に変換は simulation 側
+     "sample_rate_hz": 4.0,
+     "seed_number": "None",
+     "sim_repeat": 1,
+     "display_mode": ["2D"],    # 文字列リスト
+ }
+ 
+ # seed_number の文字列入力を整数シード値に変換
+ def get_seed(seed_input: str) -> int:
+     if seed_input == "None":
+         return int(time.time() * 1000) % (2**32)
+     return int(seed_input)
+ import configparser
  import os
  
- # プロジェクトルート（tools/ から 1つ上 = trajectory/）
- PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+ CONFIG_PATH = os.path.join(os.path.dirname(__file__), "..", "sperm_config.ini")
  
- # 保存用ディレクトリ（figs_&_movies）
- SAVE_DIR = os.path.join(PROJECT_ROOT, "figs_&_movies")
+ PARAM_ORDER = [
+     "shape", "spot_angle", "vol", "sperm_conc", "vsl", "deviation",
+     "surface_time", "egg_localization", "gamete_r", "sim_min",
+     "sample_rate_hz", "seed_number", "sim_repeat", "display_mode"
+ ]
  
- def ensure_save_dir() -> str:
-     """
-     保存先ディレクトリが存在しなければ作成し、そのパスを返す。
-     """
-     os.makedirs(SAVE_DIR, exist_ok=True)
-     return SAVE_DIR
-+
-+
-+def open_file(path: str) -> None:
-+    """Open a file with the default application if possible."""
-+    import subprocess
-+    import platform
-+
-+    system = platform.system()
-+    try:
-+        if system == "Darwin":
-+            subprocess.run(["open", path], check=False)
-+        elif system == "Windows":
-+            os.startfile(path)  # type: ignore[attr-defined]
-+        else:  # Linux and others
-+            subprocess.run(["xdg-open", path], check=False)
-+    except Exception as e:  # pragma: no cover - OS dependent
-+        print(f"[WARN] Could not open file {path}: {e}")
+ def save_config(values: dict) -> None:
+     cfg = configparser.ConfigParser()
+     cfg["parameters"] = {}
+ 
+     for k in PARAM_ORDER:
+         if k in values:
+             v = values[k]
+             if k == "gamete_r":
+-                v = float(v) * 1000.0  # mm → µm で保存
++                v = float(v)
+             if k == "display_mode":
+                 if isinstance(v, (list, tuple)):
+                     v = v[0]
+                 v = str(v).strip()
+             cfg["parameters"][k] = str(v)
+ 
+     # ✅ ここが最重要：実際にファイルへ保存する
+     with open(CONFIG_PATH, "w") as f:
+         cfg.write(f)
+     print(f"[DEBUG] sperm_config.ini に保存しました → {CONFIG_PATH}")
+ 
+ 
+ 
+ import math
+ import numpy as np
+ 
+ def calculate_derived_constants(constants: dict) -> dict:
+     # --- 単位変換（mm化） ---
+-    constants["gamete_r"] = float(constants["gamete_r"]) / 1000.0  # μm → mm
++    constants["gamete_r"] = float(constants["gamete_r"])
+     constants["vol"] = float(constants["vol"])
+-    constants["vsl"] = float(constants["vsl"]) / 1000.0
++    constants["vsl"] = float(constants["vsl"])
+     constants["sample_rate_hz"] = float(constants["sample_rate_hz"])
+     constants["sperm_conc"] = float(constants["sperm_conc"])
+     constants["spot_angle"] = float(constants.get("spot_angle", 0.0))  # 必須shapeなら上書きされる
+ 
+     # --- 基本パラメータ ---
+     shape = constants["shape"]
+     egg_localization = constants["egg_localization"]
+     gamete_r_mm = constants["gamete_r"]
+ 
+     # --- shape別の派生定数 ---
+     if shape == "drop":
+         drop_r = ((3.0 * constants["vol"]) / (4.0 * math.pi)) ** (1.0 / 3.0)
+         constants["drop_r"] = drop_r
+         constants.update(
+             x_min=-drop_r, x_max=drop_r,
+             y_min=-drop_r, y_max=drop_r,
+             z_min=-drop_r, z_max=drop_r
+         )
+         if egg_localization == "center":
+             egg_center = np.array([0.0, 0.0, 0.0])
+         elif egg_localization == "bottom_center":
+             egg_center = np.array([0.0, 0.0, -drop_r + gamete_r_mm])
+         else:
+             raise ValueError(f"Unsupported egg_localization for drop: {egg_localization}")
+ 
+diff --git a/spermsim/initialization.py b/spermsim/initialization.py
+index 5c4bde5d8e42708129210f889db868f385b94800..07ad99824461897fb9dd657a0cd9d06606abc254 100644
+--- a/spermsim/initialization.py
++++ b/spermsim/initialization.py
+@@ -145,79 +145,79 @@ def calculate_derived_constants(constants: dict) -> dict:
+ 
+     elif shape == "cube":
+         edge = constants["vol"] ** (1.0 / 3.0)
+         constants["edge"] = edge
+         half = edge / 2
+         constants.update(
+             x_min=-half, x_max=half,
+             y_min=-half, y_max=half,
+             z_min=0.0,   z_max=edge
+         )
+         if egg_localization == "center":
+             egg_center = np.array([0.0, 0.0, 0.0])
+         elif egg_localization == "bottom_center":
+             egg_center = np.array([0.0, 0.0, gamete_r_mm])
+         elif egg_localization == "bottom_edge":
+             egg_center = np.array([0.0, -half + gamete_r_mm, gamete_r_mm])
+         else:
+             raise ValueError(f"Unsupported egg_localization for cube: {egg_localization}")
+ 
+     else:
+         raise ValueError(f"Unknown shape: {shape}")
+ 
+     # --- 派生定数 ---
+     constants["egg_center"] = egg_center
+     constants["limit"] = 1e-9
+-    constants["step_length"] = (constants["vsl"] * constants["sample_rate_hz"]) / 1000.0
++    constants["step_length"] = constants["vsl"] / constants["sample_rate_hz"] if constants["sample_rate_hz"] else 0.0
+     constants["number_of_sperm"] = int(constants["sperm_conc"] * constants["vol"] / 1000)
+ 
+     return constants
+ 
+ 
+ 
+ def calc_spot_geometry(volume_ul: float, angle_deg: float) -> tuple[float, float, float]:
+     angle_rad = math.radians(angle_deg)
+-    vol_um3 = volume_ul * 1e9
++    vol_mm3 = volume_ul  # 1 µL = 1 mm³
+ 
+     def cap_volume(R: float) -> float:
+         h = R * (1 - math.cos(angle_rad))
+         return math.pi * h * h * (3 * R - h) / 3
+ 
+     low = 0.0
+-    high = max(vol_um3 ** (1 / 3), 1.0)
+-    while cap_volume(high) < vol_um3:
++    high = max(vol_mm3 ** (1 / 3), 1.0)
++    while cap_volume(high) < vol_mm3:
+         high *= 2.0
+     for _ in range(60):
+         mid = (low + high) / 2.0
+-        if cap_volume(mid) < vol_um3:
++        if cap_volume(mid) < vol_mm3:
+             low = mid
+         else:
+             high = mid
+-    R_um = (low + high) / 2.0
+-    bottom_r_um = R_um * math.sin(angle_rad)
+-    bottom_height_um = R_um * math.cos(angle_rad)
+-    return R_um / 1000.0, bottom_r_um / 1000.0, bottom_height_um / 1000.0
++    R = (low + high) / 2.0
++    bottom_r = R * math.sin(angle_rad)
++    bottom_height = R * math.cos(angle_rad)
++    return R, bottom_r, bottom_height
+ # ---------------------------------------------------------------------------
+ # Tkinter GUI クラス
+ # ---------------------------------------------------------------------------
+ 
+ class SimApp:
+     def __init__(self, root: tk.Tk):
+         self.root = root
+         self.root.title("Sperm Simulation GUI")
+         self.root.geometry("780x900")
+         self.config_data = load_config()  # .ini → dict
+         self.tk_vars: dict[str, tk.Variable] = {}  # Param ↔ Tk 変数
+         self.save_var = tk.BooleanVar()
+         self.save_var.set(True)
+         self.simulation_ran = False
+         # スクロールキャンバス
+         canvas = tk.Canvas(self.root)
+         vbar = ttk.Scrollbar(self.root, orient="vertical", command=canvas.yview)
+ 
+         
+         self.scroll_frame = ttk.Frame(canvas)
+         canvas.create_window((0, 0), window=self.scroll_frame, anchor="nw")
+         canvas.configure(yscrollcommand=vbar.set)
+         self.scroll_frame.bind(
+             "<Configure>",
+             lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+diff --git a/spermsim/initialization.py b/spermsim/initialization.py
+index 5c4bde5d8e42708129210f889db868f385b94800..07ad99824461897fb9dd657a0cd9d06606abc254 100644
+--- a/spermsim/initialization.py
++++ b/spermsim/initialization.py
+@@ -281,85 +281,85 @@ class SimApp:
+         self.spot_angle_buttons = []
+         for v in [30, 50, 70, 90]:
+             rb = ttk.Radiobutton(f_angle, text=str(v),
+                                  variable=self.tk_vars["spot_angle"], value=float(v))
+             rb.pack(side="left")
+             self.spot_angle_buttons.append(rb)
+ 
+         # --- vol ---------------------------------------------------------
+         self.tk_vars["vol"] = tk.DoubleVar()
+         ttk.Label(parent, text="vol (µL):").pack(anchor="w", padx=10, pady=(10, 0))
+         f_vol = ttk.Frame(parent); f_vol.pack(anchor="w", padx=30)
+         for v in [6.25, 12.5, 25, 50, 100, 200]:
+             ttk.Radiobutton(f_vol, text=str(v), variable=self.tk_vars["vol"],
+                             value=float(v)).pack(side="left")
+ 
+         # --- sperm_conc --------------------------------------------------
+         self.tk_vars["sperm_conc"] = tk.DoubleVar()
+         ttk.Label(parent, text="sperm_conc (cells/mL):").pack(anchor="w", padx=10, pady=(10, 0))
+         f_conc = ttk.Frame(parent); f_conc.pack(anchor="w", padx=30)
+         for v in [1e3, 3.16e3, 1e4, 3.162e4, 1e5]:
+             ttk.Radiobutton(f_conc, text=f"{int(v):,}", variable=self.tk_vars["sperm_conc"],
+                             value=float(v)).pack(side="left")
+ 
+         # --- vsl ---------------------------------------------------------
+         self.tk_vars["vsl"] = tk.DoubleVar()
+-        ttk.Label(parent, text="vsl (µm/s):").pack(anchor="w", padx=10, pady=(10, 0))
++        ttk.Label(parent, text="vsl (mm/s):").pack(anchor="w", padx=10, pady=(10, 0))
+         f_vsl = ttk.Frame(parent); f_vsl.pack(anchor="w", padx=30)
+-        for v in [73, 90, 110, 130, 150]:
++        for v in [0.073, 0.09, 0.11, 0.13, 0.15]:
+             ttk.Radiobutton(f_vsl, text=str(v), variable=self.tk_vars["vsl"],
+                             value=float(v)).pack(side="left")
+ 
+         # --- deviation ---------------------------------------------------
+         self.tk_vars["deviation"] = tk.DoubleVar()
+         ttk.Label(parent, text="deviation:").pack(anchor="w", padx=10, pady=(10, 0))
+         f_dev = ttk.Frame(parent); f_dev.pack(anchor="w", padx=30)
+         for v in [0.1, 0.2, 0.4, 0.8, 1.0, 2.0, 4.0]:
+             ttk.Radiobutton(f_dev, text=str(v), variable=self.tk_vars["deviation"],
+                             value=float(v)).pack(side="left")
+ 
+         # --- surface_time ------------------------------------------------
+         self.tk_vars["surface_time"] = tk.DoubleVar()
+         ttk.Label(parent, text="surface_time (sec):").pack(anchor="w", padx=10, pady=(10, 0))
+         f_surface = ttk.Frame(parent); f_surface.pack(anchor="w", padx=30)
+         for v in [0, 1, 2, 3, 4]:
+             ttk.Radiobutton(f_surface, text=str(v), variable=self.tk_vars["surface_time"],
+                             value=float(v)).pack(side="left")
+ 
+         # --- egg_localization -------------------------------------------
+         self.tk_vars["egg_localization"] = tk.StringVar()
+         ttk.Label(parent, text="egg_localization:").pack(anchor="w", padx=10, pady=(10, 0))
+         f_egg = ttk.Frame(parent); f_egg.pack(anchor="w", padx=30)
+         for v in ["bottom_center", "bottom_edge", "center"]:
+             ttk.Radiobutton(f_egg, text=v, variable=self.tk_vars["egg_localization"],
+                             value=v).pack(side="left")
+ 
+         # --- gamete_r ----------------------------------------------------
+         self.tk_vars["gamete_r"] = tk.DoubleVar()
+-        ttk.Label(parent, text="gamete_r (µm):").pack(anchor="w", padx=10, pady=(10, 0))
++        ttk.Label(parent, text="gamete_r (mm):").pack(anchor="w", padx=10, pady=(10, 0))
+         f_gr = ttk.Frame(parent); f_gr.pack(anchor="w", padx=30)
+-        for v in [40, 50, 150]:
++        for v in [0.04, 0.05, 0.15]:
+             ttk.Radiobutton(f_gr, text=str(v), variable=self.tk_vars["gamete_r"],
+                             value=float(v)).pack(side="left")
+ 
+         # --- sim_min -----------------------------------------------------
+         self.tk_vars["sim_min"] = tk.DoubleVar()
+         ttk.Label(parent, text="sim_min (min):").pack(anchor="w", padx=10, pady=(10, 0))
+         f_simmin = ttk.Frame(parent); f_simmin.pack(anchor="w", padx=30)
+         for v in [0.2, 1, 10, 30, 60]:
+             ttk.Radiobutton(f_simmin, text=str(v), variable=self.tk_vars["sim_min"],
+                             value=float(v)).pack(side="left")
+ 
+         # --- sample_rate_hz ----------------------------------------------
+         self.tk_vars["sample_rate_hz"] = tk.DoubleVar()
+         ttk.Label(parent, text="sample_rate_hz:").pack(anchor="w", padx=10, pady=(10, 0))
+         f_hz = ttk.Frame(parent); f_hz.pack(anchor="w", padx=30)
+         for v in [1, 2, 3, 4]:
+             ttk.Radiobutton(f_hz, text=str(v), variable=self.tk_vars["sample_rate_hz"],
+                             value=float(v)).pack(side="left")
+ 
+         # --- seed_number ----------------------------------------------
+         self.tk_vars["seed_number"] = tk.StringVar()
+         ttk.Label(parent, text="seed_number:").pack(anchor="w", padx=10, pady=(10, 0))
+         f_seed = ttk.Frame(parent); f_seed.pack(anchor="w", padx=30)
+         for v in ["None", "0", "1", "2", "3", "4"]:
+             ttk.Radiobutton(f_seed, text=v, variable=self.tk_vars["seed_number"],

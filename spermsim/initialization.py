@@ -42,7 +42,7 @@ default_values = {
     "deviation": 0.4,
     "surface_time": 2.0,
     "egg_localization": "bottom_center",
-    "gamete_r": 0.04,          # mm  (GUI 表示は µm)
+    "gamete_r": 0.04,          # mm
     "sim_min": 1.0,            # min 実測値ではなく「分」→秒に変換は simulation 側
     "sample_rate_hz": 4.0,
     "seed_number": "None",
@@ -74,7 +74,7 @@ def save_config(values: dict) -> None:
         if k in values:
             v = values[k]
             if k == "gamete_r":
-                v = float(v) * 1000.0  # mm → µm で保存
+                v = float(v)
             if k == "display_mode":
                 if isinstance(v, (list, tuple)):
                     v = v[0]
@@ -93,9 +93,9 @@ import numpy as np
 
 def calculate_derived_constants(constants: dict) -> dict:
     # --- 単位変換（mm化） ---
-    constants["gamete_r"] = float(constants["gamete_r"]) / 1000.0  # μm → mm
+    constants["gamete_r"] = float(constants["gamete_r"])
     constants["vol"] = float(constants["vol"])
-    constants["vsl"] = float(constants["vsl"]) / 1000.0
+    constants["vsl"] = float(constants["vsl"])
     constants["sample_rate_hz"] = float(constants["sample_rate_hz"])
     constants["sperm_conc"] = float(constants["sperm_conc"])
     constants["spot_angle"] = float(constants.get("spot_angle", 0.0))  # 必須shapeなら上書きされる
@@ -167,7 +167,7 @@ def calculate_derived_constants(constants: dict) -> dict:
     # --- 派生定数 ---
     constants["egg_center"] = egg_center
     constants["limit"] = 1e-9
-    constants["step_length"] = (constants["vsl"] * constants["sample_rate_hz"]) / 1000.0
+    constants["step_length"] = constants["vsl"] / constants["sample_rate_hz"] if constants["sample_rate_hz"] else 0.0
     constants["number_of_sperm"] = int(constants["sperm_conc"] * constants["vol"] / 1000)
 
     return constants
@@ -176,26 +176,26 @@ def calculate_derived_constants(constants: dict) -> dict:
 
 def calc_spot_geometry(volume_ul: float, angle_deg: float) -> tuple[float, float, float]:
     angle_rad = math.radians(angle_deg)
-    vol_um3 = volume_ul * 1e9
+    vol_mm3 = volume_ul  # 1 µL = 1 mm³
 
     def cap_volume(R: float) -> float:
         h = R * (1 - math.cos(angle_rad))
         return math.pi * h * h * (3 * R - h) / 3
 
     low = 0.0
-    high = max(vol_um3 ** (1 / 3), 1.0)
-    while cap_volume(high) < vol_um3:
+    high = max(vol_mm3 ** (1 / 3), 1.0)
+    while cap_volume(high) < vol_mm3:
         high *= 2.0
     for _ in range(60):
         mid = (low + high) / 2.0
-        if cap_volume(mid) < vol_um3:
+        if cap_volume(mid) < vol_mm3:
             low = mid
         else:
             high = mid
-    R_um = (low + high) / 2.0
-    bottom_r_um = R_um * math.sin(angle_rad)
-    bottom_height_um = R_um * math.cos(angle_rad)
-    return R_um / 1000.0, bottom_r_um / 1000.0, bottom_height_um / 1000.0
+    R = (low + high) / 2.0
+    bottom_r = R * math.sin(angle_rad)
+    bottom_height = R * math.cos(angle_rad)
+    return R, bottom_r, bottom_height
 # ---------------------------------------------------------------------------
 # Tkinter GUI クラス
 # ---------------------------------------------------------------------------
@@ -303,9 +303,9 @@ class SimApp:
 
         # --- vsl ---------------------------------------------------------
         self.tk_vars["vsl"] = tk.DoubleVar()
-        ttk.Label(parent, text="vsl (µm/s):").pack(anchor="w", padx=10, pady=(10, 0))
+        ttk.Label(parent, text="vsl (mm/s):").pack(anchor="w", padx=10, pady=(10, 0))
         f_vsl = ttk.Frame(parent); f_vsl.pack(anchor="w", padx=30)
-        for v in [73, 90, 110, 130, 150]:
+        for v in [0.073, 0.09, 0.11, 0.13, 0.15]:
             ttk.Radiobutton(f_vsl, text=str(v), variable=self.tk_vars["vsl"],
                             value=float(v)).pack(side="left")
 
@@ -335,9 +335,9 @@ class SimApp:
 
         # --- gamete_r ----------------------------------------------------
         self.tk_vars["gamete_r"] = tk.DoubleVar()
-        ttk.Label(parent, text="gamete_r (µm):").pack(anchor="w", padx=10, pady=(10, 0))
+        ttk.Label(parent, text="gamete_r (mm):").pack(anchor="w", padx=10, pady=(10, 0))
         f_gr = ttk.Frame(parent); f_gr.pack(anchor="w", padx=30)
-        for v in [40, 50, 150]:
+        for v in [0.04, 0.05, 0.15]:
             ttk.Radiobutton(f_gr, text=str(v), variable=self.tk_vars["gamete_r"],
                             value=float(v)).pack(side="left")
 
