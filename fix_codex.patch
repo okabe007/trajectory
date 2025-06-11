@@ -1,88 +1,148 @@
-diff --git a/core/engine.py b/core/engine.py
-index 67941314fee7bd16ce86b5f192f2fc8f2e05f759..ab5d6451e13d86d96ec1a2530ce66b52a5da84c8 100644
---- a/core/engine.py
-+++ b/core/engine.py
-@@ -135,52 +135,81 @@ class SpermSimulation:
-                 try:
-                     self.constants[key] = int(float(self.constants[key]))
-                 except Exception:
-                     print(f"[WARNING] {key} = {self.constants[key]} をint変換できませんでした")
-         # shape, egg_localization, などはstr型のままでOK
-         self.constants = calculate_derived_constants(self.constants)
-         
-     from tools.plot_utils import plot_2d_trajectories, plot_3d_trajectories, draw_3d_movies
-     import numpy as np
-     import os
+diff --git a/spermsim/main.py b/spermsim/main.py
+index cebecba02002753cd243dd5d24f0ebd53696aa47..5262a73a0cfd160041a056894756bf5cb237829b 100644
+--- a/spermsim/main.py
++++ b/spermsim/main.py
+@@ -1072,59 +1072,52 @@ class SpermSimulation:
+         for j in range(self.number_of_sperm):
+             self.vec_colors[j] = base_colors[j % len(base_colors)]
  
+     
+     def initial_vec(self, j, constants):
+         shape = self.constants['shape']
+         analysis_type = self.constants.get('analysis_type', 'simulation')
  
-     def simulate(self, constants: dict) -> np.ndarray:
-         """
-         精子運動の軌跡を計算し、(N精子 × Tステップ × 3座標) の配列として返す。
-         """
-         number_of_sperm = constants["number_of_sperm"]
-         number_of_steps = int(constants["sim_min"] * 60 * constants["sample_rate_hz"])
-         step_length = constants["step_length"]
-         rng = np.random.default_rng()
+         # --- unified base_position for all modes ---
+         base_position = self.shape.initial_position()
  
-         trajectory = np.zeros((number_of_sperm, number_of_steps, 3))
-         # 必要ならベクトル保存も追加: vecs = np.zeros((number_of_sperm, number_of_steps, 3))
+         if "number_of_sperm" not in self.constants:
+             volume = float(self.constants['volume'])
+             sperm_conc = float(self.constants['sperm_conc'])
+             self.constants['number_of_sperm'] = int(sperm_conc * volume / 1000)
  
-         for j in range(number_of_sperm):
--            pos = np.array([0.0, 0.0, 0.0])  # 初期位置（例）
--            vec = np.array([0.0, 0.0, 1.0])  # 初期位置（例）
-+            shape = constants.get("shape", "cube").lower()
-+            if shape in ["cube", "ceros"]:
-+                x = rng.uniform(constants["x_min"], constants["x_max"])
-+                y = rng.uniform(constants["y_min"], constants["y_max"])
-+                z = rng.uniform(constants["z_min"], constants["z_max"])
-+                pos = np.array([x, y, z])
-+            elif shape == "drop":
-+                R = float(constants["drop_r"])
-+                theta = np.arccos(rng.uniform(-1.0, 1.0))
-+                phi = rng.uniform(-np.pi, np.pi)
-+                r = R * (rng.random() ** (1.0 / 3.0))
-+                pos = np.array([
-+                    r * np.sin(theta) * np.cos(phi),
-+                    r * np.sin(theta) * np.sin(phi),
-+                    r * np.cos(theta),
-+                ])
-+            elif shape == "spot":
-+                R = float(constants["spot_r"])
-+                angle_rad = np.deg2rad(float(constants["spot_angle"]))
-+                cos_min = np.cos(angle_rad)
-+                while True:
-+                    vec_tmp = rng.normal(size=3)
-+                    vec_tmp /= np.linalg.norm(vec_tmp) + 1e-12
-+                    r = R * (rng.random() ** (1.0 / 3.0))
-+                    candidate = vec_tmp * r
-+                    if candidate[2] >= R * cos_min:
-+                        pos = candidate
-+                        break
-+            else:
-+                pos = np.array([0.0, 0.0, 0.0])
-+            vec = np.array([0.0, 0.0, 1.0])
+         if "number_of_steps" not in self.constants:
+             sim_min = float(self.constants['sim_min'])
+             sample_rate = float(self.constants['sample_rate_hz'])
+             steps = int(sim_min * 60 * sample_rate)
+             self.constants['number_of_steps'] = steps
  
-             for i in range(number_of_steps):
-                 # ベクトルを偏向させる
-                 vec = _perturb_direction(vec, constants['deviation'], rng)
+    
+         if analysis_type == "reflection":
+             if shape == "spot":
+-                spot_bottom_r = self.constants.get('spot_bottom_r', 1.0)
+-                spot_bottom_height = self.constants.get('spot_bottom_height', 0.5)
+-                base_position = np.array([
+-                    spot_bottom_r - constants['step_length'] * 1.5,
+-                    0.001,
+-                    spot_bottom_height
+-                ])
+-                direction_vec = (constants['step_length'], 0, 0)
+-                temp_position = base_position + direction_vec
++                temp_position = base_position + np.array([constants['step_length'], 0, 0])
++                IO_status = self.shape.io_check(base_position, temp_position)
  
-                 # 次の位置を計算
-                 candidate = pos + vec * step_length
+             elif shape == "cube":
+                 temp_position = base_position + np.array([constants['step_length'], 0, 0])
+                 IO_status, vertex_point = self.shape.io_check(temp_position)
  
-                 # IOチェックや壁処理など（drop, cube, spotのモードごとに）
-                 # status = IO_check_xxx(candidate, constants)
-                 # 必要なら candidate, vec = drop_polygon_move(...) など
+             elif shape == "drop":
+                 temp_position = base_position + np.array([constants['step_length'], 0, 0])
+                 IO_status = self.shape.io_check(temp_position, self.constants['initial_stick'])
+                 vertex_point = None
  
-                 trajectory[j, i] = candidate
-                 pos = candidate
+             else:
+                 raise ValueError(f"Unsupported shape for reflection: {shape}")
  
-         return trajectory
+             local_stick = self.constants['initial_stick']
+             if IO_status in [IOStatus.TEMP_ON_SURFACE, IOStatus.TEMP_ON_EDGE]:
+                 last_vec = temp_position - base_position
+                 if np.linalg.norm(last_vec) < self.constants['limit']:
+                     last_vec = np.array([constants['step_length'], 0.0, 0.0])
+                 inward_dir = face_and_inward_dir(
+                     temp_position,
+                     base_position,
+                     last_vec,
+                     IO_status,
+                     local_stick,
+                     constants=self.constants
+diff --git a/spermsim/main.py b/spermsim/main.py
+index cebecba02002753cd243dd5d24f0ebd53696aa47..5262a73a0cfd160041a056894756bf5cb237829b 100644
+--- a/spermsim/main.py
++++ b/spermsim/main.py
+@@ -1497,62 +1490,76 @@ class SpermTrajectoryVisualizer:
+         ax.set_xlim(x_min, x_max)
+         ax.set_ylim(y_min, y_max)
+         ax.set_zlim(z_min, z_max)
+         ax.set_xlabel("X")
+         ax.set_ylabel("Y")
+         ax.set_zlabel("Z")
+         return fig, ax
  
+     def _compute_egg_surface(self):
+         u = np.linspace(0, 2 * np.pi, 50)
+         v = np.linspace(0, np.pi, 50)
+         ex = self.egg_center[0] + self.egg_radius * np.outer(np.cos(u), np.sin(v))
+         ey = self.egg_center[1] + self.egg_radius * np.outer(np.sin(u), np.sin(v))
+         ez = self.egg_center[2] + self.egg_radius * np.outer(np.ones_like(u), np.cos(v))
+         return ex, ey, ez
  
+     def _draw_medium(self, ax):
+         shape = self.constants.get("shape", "spot")
+         if shape == "drop":
+             r = self.constants["drop_r"]
+             u = np.linspace(0, 2 * np.pi, 40)
+             v = np.linspace(0, np.pi, 40)
+             x = r * np.outer(np.cos(u), np.sin(v))
+             y = r * np.outer(np.sin(u), np.sin(v))
+             z = r * np.outer(np.ones_like(u), np.cos(v))
++            ax.plot_surface(x, y, z, color="pink", alpha=0.2)
+         elif shape == "cube":
+             edge = self.constants["edge_um"]
+             r = edge / 2
+-            for s, e in zip([-r, r], [r, -r]):
++            corners = [
++                (-r, -r, -r), (r, -r, -r), (r, r, -r), (-r, r, -r),
++                (-r, -r, r),  (r, -r, r),  (r, r, r),  (-r, r, r)
++            ]
++            edges = [
++                (0,1), (1,2), (2,3), (3,0),
++                (4,5), (5,6), (6,7), (7,4),
++                (0,4), (1,5), (2,6), (3,7)
++            ]
++            for s_idx, e_idx in edges:
++                s = corners[s_idx]
++                e = corners[e_idx]
++                ax.plot([s[0], e[0]], [s[1], e[1]], [s[2], e[2]], color="pink", alpha=0.4)
+         elif shape == "spot":
+             spot_r = self.constants.get("spot_r", 1.0)
+             h = self.constants.get("spot_bottom_height", 0.0)
+             u = np.linspace(0, 2 * np.pi, 40)
+             v = np.linspace(0, np.pi / 2, 40)
+             x = spot_r * np.outer(np.cos(u), np.sin(v))
+             y = spot_r * np.outer(np.sin(u), np.sin(v))
+             z = spot_r * np.outer(np.ones_like(u), np.cos(v)) + h
++            ax.plot_surface(x, y, z, color="pink", alpha=0.2)
+     def _init_lines(self, ax):
+         return [ax.plot([], [], [], lw=1)[0] for _ in range(self.simulation.number_of_sperm)]
  
+     def _init_func(self, lines):
+         def init():
+             for line in lines:
+                 line.set_data([], [])
+                 line.set_3d_properties([])
+             return lines
+         return init
  
-     def run(self, constants: dict, result_dir: str, save_name: str, save_flag: bool = False):
-         # 派生変数の再計算（引数が更新されていた場合に備えて）
-         constants = calculate_derived_constants(constants)
-         print("[DEBUG] run() 開始: constants =", constants)
+     def _animate_func(self, lines):
+         def animate(i):
+             for j, line in enumerate(lines):
+                 base = self.simulation.trajectory[j, i]
+                 end = self.simulation.trajectory[j, i + 1]
+                 line.set_data([base[0], end[0]], [base[1], end[1]])
+                 line.set_3d_properties([base[2], end[2]])
+                 line.set_color(self.simulation.vec_colors[j, i])
+                 line.set_linewidth(self.simulation.vec_thickness_3d[j, i])
+             return lines
+         return animate
  
+     def animate_trajectory(self):
+         if self.constants.get("make_movie", "no").lower() != "yes":
