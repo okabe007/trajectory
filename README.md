@@ -45,3 +45,7 @@ pip install -r requirements.txt
 ```bash
 python entry.py
 ```
+
+### 🎥 Movie Output
+
+GUIで `display_mode` に `movie` を選択すると、シミュレーション終了後に3Dムービーが表示されます。生成されたファイルは `figs_&_movies` ディレクトリに自動保存されます。
