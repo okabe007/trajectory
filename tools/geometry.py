@@ -148,18 +148,20 @@ class CubeShape(BaseShape):
         if "vol" not in self.constants:
             raise ValueError("CubeShape: constants に 'vol' か 'vol_um3' が必要です")
 
-        # ------ 一辺長 edge_um を計算（常に µm 単位） ------
-        vol_um3 = self.constants["vol"] * 1e9        # µm³
-        edge_um = vol_um3 ** (1.0 / 3.0)             # 一辺 [µm]
+        # ------ 一辺長 edge_mm を計算 ------
+        vol_mm3 = self.constants["vol"]              # µL = mm³
+        edge_mm = vol_mm3 ** (1.0 / 3.0)             # 一辺 [mm]
+        edge_um = edge_mm * 1000.0
         self.edge_um = edge_um
+        self.constants["edge"] = edge_mm
 
         # --- limits の設定 ---
         # derived_constants.calculate_derived_constants で x_min などが
         # 既に mm 単位で計算されている場合はそれを尊重する。
         limit_keys = ["x_min", "x_max", "y_min", "y_max", "z_min", "z_max"]
         if not all(k in self.constants for k in limit_keys):
-            # 派生値が無い場合のみここで計算する（mm単位に変換）
-            half_mm = edge_um / 2.0 / 1000.0
+            # 派生値が無い場合のみここで計算する（mm単位）
+            half_mm = edge_mm / 2.0
             self.constants.update({
                 "x_min": -half_mm, "x_max": half_mm,
                 "y_min": -half_mm, "y_max": half_mm,
