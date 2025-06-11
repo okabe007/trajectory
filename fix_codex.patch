@@ -1,78 +1,88 @@
-diff --git a/tools/geometry.py b/tools/geometry.py
-index fa090571fd208bd8c2d01e057a4469119645bf3c..d59c5fe109a221ffb9131f17dc9b667e2f0de10b 100644
---- a/tools/geometry.py
-+++ b/tools/geometry.py
-@@ -193,62 +193,62 @@ class CubeShape(BaseShape):
+diff --git a/core/engine.py b/core/engine.py
+index 67941314fee7bd16ce86b5f192f2fc8f2e05f759..ab5d6451e13d86d96ec1a2530ce66b52a5da84c8 100644
+--- a/core/engine.py
++++ b/core/engine.py
+@@ -135,52 +135,81 @@ class SpermSimulation:
+                 try:
+                     self.constants[key] = int(float(self.constants[key]))
+                 except Exception:
+                     print(f"[WARNING] {key} = {self.constants[key]} をint変換できませんでした")
+         # shape, egg_localization, などはstr型のままでOK
+         self.constants = calculate_derived_constants(self.constants)
+         
+     from tools.plot_utils import plot_2d_trajectories, plot_3d_trajectories, draw_3d_movies
+     import numpy as np
+     import os
  
- class DropShape(BaseShape):
-     def initial_position(self):
-         R = float(self.constants['drop_r'])
-         theta = np.arccos(2 * np.random.rand() - 1)
-         phi = np.random.uniform(-np.pi, np.pi)
-         s = R * np.random.rand() ** (1/3)
-         x = s * np.sin(theta) * np.cos(phi)
-         y = s * np.sin(theta) * np.sin(phi)
-         z = s * np.cos(theta)
-         return np.array([x, y, z])
  
-     def io_check(self, point, stick_status):
-         R = float(self.constants["drop_r"])
-         if point[2] < 0:
-             return IOStatus.OUTSIDE
-         norm = np.linalg.norm(point)
-         if norm < R:
-             return IOStatus.INSIDE
-         if np.isclose(norm, R, atol=1e-9):
-             return IOStatus.TEMP_ON_SURFACE
-         return IOStatus.OUTSIDE
+     def simulate(self, constants: dict) -> np.ndarray:
+         """
+         精子運動の軌跡を計算し、(N精子 × Tステップ × 3座標) の配列として返す。
+         """
+         number_of_sperm = constants["number_of_sperm"]
+         number_of_steps = int(constants["sim_min"] * 60 * constants["sample_rate_hz"])
+         step_length = constants["step_length"]
+         rng = np.random.default_rng()
  
- class SpotShape(BaseShape):
-     def initial_position(self):
--        radius = float(self.constants['spot_r'])  # ✅ spot用
--        spot_angle_rad = np.deg2rad(float(self.constants['spot_angle']))
-+        """Return a random point uniformly distributed inside a spherical cap."""
-+        radius = float(self.constants['spot_r'])
-+        angle_rad = np.deg2rad(float(self.constants['spot_angle']))
-+        cos_min = np.cos(angle_rad)
-+
-         while True:
--            theta = np.random.uniform(0, spot_angle_rad)
--            phi = np.random.uniform(-np.pi, np.pi)
--            r = radius * (np.random.rand() ** (1/3))
--            x = r * np.sin(theta) * np.cos(phi)
--            y = r * np.sin(theta) * np.sin(phi)
--            z = r * np.cos(theta)
--            if z >= radius * np.cos(spot_angle_rad):
--                break
--        return np.array([x, y, z])
-+            vec = np.random.normal(size=3)
-+            vec /= np.linalg.norm(vec) + 1e-12
-+            r = radius * (np.random.rand() ** (1 / 3))
-+            point = vec * r
-+            if point[2] >= radius * cos_min:
-+                return point
+         trajectory = np.zeros((number_of_sperm, number_of_steps, 3))
+         # 必要ならベクトル保存も追加: vecs = np.zeros((number_of_sperm, number_of_steps, 3))
  
-     def io_check(self, base_point, temp_point=None):
-         R = float(self.constants["radius"])
-         if temp_point is None:
-             return IOStatus.OUTSIDE
-         norm = np.linalg.norm(temp_point)
-         if norm < R:
-             return IOStatus.INSIDE
-         if np.isclose(norm, R, atol=1e-9):
-             return IOStatus.TEMP_ON_SURFACE
-         return IOStatus.OUTSIDE
+         for j in range(number_of_sperm):
+-            pos = np.array([0.0, 0.0, 0.0])  # 初期位置（例）
+-            vec = np.array([0.0, 0.0, 1.0])  # 初期位置（例）
++            shape = constants.get("shape", "cube").lower()
++            if shape in ["cube", "ceros"]:
++                x = rng.uniform(constants["x_min"], constants["x_max"])
++                y = rng.uniform(constants["y_min"], constants["y_max"])
++                z = rng.uniform(constants["z_min"], constants["z_max"])
++                pos = np.array([x, y, z])
++            elif shape == "drop":
++                R = float(constants["drop_r"])
++                theta = np.arccos(rng.uniform(-1.0, 1.0))
++                phi = rng.uniform(-np.pi, np.pi)
++                r = R * (rng.random() ** (1.0 / 3.0))
++                pos = np.array([
++                    r * np.sin(theta) * np.cos(phi),
++                    r * np.sin(theta) * np.sin(phi),
++                    r * np.cos(theta),
++                ])
++            elif shape == "spot":
++                R = float(constants["spot_r"])
++                angle_rad = np.deg2rad(float(constants["spot_angle"]))
++                cos_min = np.cos(angle_rad)
++                while True:
++                    vec_tmp = rng.normal(size=3)
++                    vec_tmp /= np.linalg.norm(vec_tmp) + 1e-12
++                    r = R * (rng.random() ** (1.0 / 3.0))
++                    candidate = vec_tmp * r
++                    if candidate[2] >= R * cos_min:
++                        pos = candidate
++                        break
++            else:
++                pos = np.array([0.0, 0.0, 0.0])
++            vec = np.array([0.0, 0.0, 1.0])
  
- class CerosShape(BaseShape):
-     def initial_position(self):
-         x_min, x_max, y_min, y_max, z_min, z_max = self.get_limits()
-         return np.random.uniform([x_min, y_min, z_min], [x_max, y_max, z_max])
+             for i in range(number_of_steps):
+                 # ベクトルを偏向させる
+                 vec = _perturb_direction(vec, constants['deviation'], rng)
  
-     def io_check(self, point):
-         # cerosもcubeと同じ判定
-         x_min, x_max, y_min, y_max, z_min, z_max = self.get_limits()
-         eps = 1e-9
-         inside = (x_min < point[0] < x_max) and (y_min < point[1] < y_max) and (z_min < point[2] < z_max)
-         if inside:
-             return IOStatus.INSIDE, None
-         on_edge = (
+                 # 次の位置を計算
+                 candidate = pos + vec * step_length
+ 
+                 # IOチェックや壁処理など（drop, cube, spotのモードごとに）
+                 # status = IO_check_xxx(candidate, constants)
+                 # 必要なら candidate, vec = drop_polygon_move(...) など
+ 
+                 trajectory[j, i] = candidate
+                 pos = candidate
+ 
+         return trajectory
+ 
+ 
+ 
+ 
+     def run(self, constants: dict, result_dir: str, save_name: str, save_flag: bool = False):
+         # 派生変数の再計算（引数が更新されていた場合に備えて）
+         constants = calculate_derived_constants(constants)
+         print("[DEBUG] run() 開始: constants =", constants)
+ 

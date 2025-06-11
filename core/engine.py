@@ -157,8 +157,37 @@ class SpermSimulation:
         # 必要ならベクトル保存も追加: vecs = np.zeros((number_of_sperm, number_of_steps, 3))
 
         for j in range(number_of_sperm):
-            pos = np.array([0.0, 0.0, 0.0])  # 初期位置（例）
-            vec = np.array([0.0, 0.0, 1.0])  # 初期位置（例）
+            shape = constants.get("shape", "cube").lower()
+            if shape in ["cube", "ceros"]:
+                x = rng.uniform(constants["x_min"], constants["x_max"])
+                y = rng.uniform(constants["y_min"], constants["y_max"])
+                z = rng.uniform(constants["z_min"], constants["z_max"])
+                pos = np.array([x, y, z])
+            elif shape == "drop":
+                R = float(constants["drop_r"])
+                theta = np.arccos(rng.uniform(-1.0, 1.0))
+                phi = rng.uniform(-np.pi, np.pi)
+                r = R * (rng.random() ** (1.0 / 3.0))
+                pos = np.array([
+                    r * np.sin(theta) * np.cos(phi),
+                    r * np.sin(theta) * np.sin(phi),
+                    r * np.cos(theta),
+                ])
+            elif shape == "spot":
+                R = float(constants["spot_r"])
+                angle_rad = np.deg2rad(float(constants["spot_angle"]))
+                cos_min = np.cos(angle_rad)
+                while True:
+                    vec_tmp = rng.normal(size=3)
+                    vec_tmp /= np.linalg.norm(vec_tmp) + 1e-12
+                    r = R * (rng.random() ** (1.0 / 3.0))
+                    candidate = vec_tmp * r
+                    if candidate[2] >= R * cos_min:
+                        pos = candidate
+                        break
+            else:
+                pos = np.array([0.0, 0.0, 0.0])
+            vec = np.array([0.0, 0.0, 1.0])
 
             for i in range(number_of_steps):
                 # ベクトルを偏向させる
