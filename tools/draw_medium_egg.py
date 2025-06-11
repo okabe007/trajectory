@@ -9,24 +9,17 @@ def draw_medium(ax, constants):
         x = r * np.cos(u) * np.sin(v)
         y = r * np.sin(u) * np.sin(v)
         z = r * np.cos(v)
-        ax.plot_surface(x, y, z, color='pink', alpha=0.2)
-    if shape == "spot":
+        ax.plot_surface(x, y, z, color="pink", alpha=0.2)
+    elif shape == "spot":
         r = constants["spot_r"]
-        rb= constants["spot_bottom_r"]
+        rb = constants["spot_bottom_r"]
         rh = constants["spot_bottom_height"]
-        u, v = np.mgrid[0:2*np.pi:40j, 0:np.pi:20j]
+        u, v = np.mgrid[0:2*np.pi:40j, 0:np.pi/2:20j]
         x = r * np.cos(u) * np.sin(v)
         y = r * np.sin(u) * np.sin(v)
-        z = r * np.cos(v)
-        ax.plot_surface(x, y, z, color='pink', alpha=0.2)
-    if shape == "drop"
-    "":
-        r = constants["drop_r"]
-        u, v = np.mgrid[0:2*np.pi:40j, 0:np.pi:20j]
-        x = r * np.cos(u) * np.sin(v)
-        y = r * np.sin(u) * np.sin(v)
-        z = r * np.cos(v)
-        ax.plot_surface(x, y, z, color='pink', alpha=0.2)
+        z = r * np.cos(v) + rh
+        ax.plot_surface(x, y, z, color="pink", alpha=0.2)
+    # 他の shape（cube など）は必要に応じて追加
     # 他の shape（cube, spotなど）を描画したい場合はここに追記
     
 def draw_egg_2d(ax, egg_center, egg_radius, plane='xy'):
