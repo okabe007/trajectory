@@ -171,7 +171,7 @@ def plot_2d_trajectories(trajectory, constants, save_path=None, show=True, max_s
     constants: dict
     """
     import numpy as np
-    trajectory = np.array(trajectory).astype(float) / 1000.0  # μm → mm 換算
+    trajectory = np.array(trajectory).astype(float)
 
     fig, axs = plt.subplots(1, 3, figsize=(12, 4))
     shape = constants.get('shape', 'cube').lower()
