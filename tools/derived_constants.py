@@ -97,8 +97,14 @@ def calculate_derived_constants(raw_constants):
             r = constants["gamete_r"]
             x_edge = math.sqrt(4 * R * r)
             egg_center = np.array([x_edge, 0.0, constants["z_min"] + constants["gamete_r"]])
+    elif shape == "ceros":
+        if egg_localization == "center":
+            egg_center = np.array([100, 100.0, 100.0])
+        elif egg_localization == "bottom_center":
+            egg_center = np.array([100, 100.0, 100.0])  # ← ✅
         else:
-            raise ValueError(f"Unsupported egg_localization for spot: {egg_localization}")
+            raise ValueError(f"Unsupported egg_localization for drop: {egg_localization}")
+    
 
     constants["egg_center"] = egg_center
     # ✅ number_of_sperm 計算を追加（テスト対応）
