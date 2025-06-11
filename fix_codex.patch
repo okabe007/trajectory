@@ -1,34 +1,36 @@
-diff --git a/README.md b/README.md
-index 58be7b68f42bee196af3a8f85c18533abde7ad47..165ad8f88a527b5638d25a7b2373cf42f47cfd93 100644
---- a/README.md
-+++ b/README.md
-@@ -23,25 +23,29 @@
+diff --git a/tools/path_config.py b/tools/path_config.py
+index 029d483834ec839ac1663367a84cb27adb91be62..41fb5004f4cc70ab1d5e4244ff84955933db0ec8 100644
+--- a/tools/path_config.py
++++ b/tools/path_config.py
+@@ -1,14 +1,31 @@
+ import os
  
- ### 1. 通常の環境で
+ # プロジェクトルート（tools/ から 1つ上 = trajectory/）
+ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
  
- ```bash
- git clone https://github.com/<your-username>/trajectory_reboot.git
- cd trajectory_reboot
- pip install -r requirements.txt
- nano README.md## 🚀 セットアップ方法（初回のみ）
+ # 保存用ディレクトリ（figs_&_movies）
+ SAVE_DIR = os.path.join(PROJECT_ROOT, "figs_&_movies")
  
- このプロジェクトを実行するには、Python の依存ライブラリをインストールする必要があります。
- 
- ### ✅ 1. 通常の Python 環境でのセットアップ方法
- 
- ```bash
- pip install -r requirements.txt
- ```
- 
- ### 🏃‍♂️ シミュレーションの実行
- 
- パラメータ設定用GUIは `entry.py` から起動できます。GUIで設定を行い
- **Save settings and run simulation** ボタンを押すと、そのままシミュレーションが開始されます。
- 
- ```bash
- python entry.py
- ```
+ def ensure_save_dir() -> str:
+     """
+     保存先ディレクトリが存在しなければ作成し、そのパスを返す。
+     """
+     os.makedirs(SAVE_DIR, exist_ok=True)
+     return SAVE_DIR
 +
-+### 🎥 Movie Output
 +
-+GUIで `display_mode` に `movie` を選択すると、シミュレーション終了後に3Dムービーが自動再生されます。生成されたファイルは `figs_&_movies` ディレクトリに保存され、保存先の動画を既定のアプリで開いて表示します。
++def open_file(path: str) -> None:
++    """Open a file with the default application if possible."""
++    import subprocess
++    import platform
++
++    system = platform.system()
++    try:
++        if system == "Darwin":
++            subprocess.run(["open", path], check=False)
++        elif system == "Windows":
++            os.startfile(path)  # type: ignore[attr-defined]
++        else:  # Linux and others
++            subprocess.run(["xdg-open", path], check=False)
++    except Exception as e:  # pragma: no cover - OS dependent
++        print(f"[WARN] Could not open file {path}: {e}")

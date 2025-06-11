@@ -206,11 +206,20 @@ class SpermSimulation:
         elif display_mode == "3d":
             plot_3d_trajectories(self.trajectory, constants)
         elif display_mode == "movie":
+<<<<<<< ours
             from tools.path_config import ensure_save_dir
             movie_dir = ensure_save_dir()
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             movie_path = os.path.join(movie_dir, f"{save_name}_{timestamp}.mp4")
             draw_3d_movies(self.trajectory, constants, save_path=movie_path, show=True)
+=======
+            from tools.path_config import ensure_save_dir, open_file
+            movie_dir = ensure_save_dir()
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            movie_path = os.path.join(movie_dir, f"{save_name}_{timestamp}.mp4")
+            draw_3d_movies(self.trajectory, constants, save_path=movie_path, show=False)
+            open_file(movie_path)
+>>>>>>> theirs
             print(f"[INFO] Movie saved to {movie_path}")
         else:
             print(f"[WARNING] 未対応の表示モード: {display_mode}")
