@@ -1094,15 +1094,8 @@ class SpermSimulation:
    
         if analysis_type == "reflection":
             if shape == "spot":
-                spot_bottom_r = self.constants.get('spot_bottom_r', 1.0)
-                spot_bottom_height = self.constants.get('spot_bottom_height', 0.5)
-                base_position = np.array([
-                    spot_bottom_r - constants['step_length'] * 1.5,
-                    0.001,
-                    spot_bottom_height
-                ])
-                direction_vec = (constants['step_length'], 0, 0)
-                temp_position = base_position + direction_vec
+                temp_position = base_position + np.array([constants['step_length'], 0, 0])
+                IO_status = self.shape.io_check(base_position, temp_position)
 
             elif shape == "cube":
                 temp_position = base_position + np.array([constants['step_length'], 0, 0])
@@ -1519,10 +1512,23 @@ class SpermTrajectoryVisualizer:
             x = r * np.outer(np.cos(u), np.sin(v))
             y = r * np.outer(np.sin(u), np.sin(v))
             z = r * np.outer(np.ones_like(u), np.cos(v))
+            ax.plot_surface(x, y, z, color="pink", alpha=0.2)
         elif shape == "cube":
             edge = self.constants["edge_um"]
             r = edge / 2
-            for s, e in zip([-r, r], [r, -r]):
+            corners = [
+                (-r, -r, -r), (r, -r, -r), (r, r, -r), (-r, r, -r),
+                (-r, -r, r),  (r, -r, r),  (r, r, r),  (-r, r, r)
+            ]
+            edges = [
+                (0,1), (1,2), (2,3), (3,0),
+                (4,5), (5,6), (6,7), (7,4),
+                (0,4), (1,5), (2,6), (3,7)
+            ]
+            for s_idx, e_idx in edges:
+                s = corners[s_idx]
+                e = corners[e_idx]
+                ax.plot([s[0], e[0]], [s[1], e[1]], [s[2], e[2]], color="pink", alpha=0.4)
         elif shape == "spot":
             spot_r = self.constants.get("spot_r", 1.0)
             h = self.constants.get("spot_bottom_height", 0.0)
@@ -1531,6 +1537,7 @@ class SpermTrajectoryVisualizer:
             x = spot_r * np.outer(np.cos(u), np.sin(v))
             y = spot_r * np.outer(np.sin(u), np.sin(v))
             z = spot_r * np.outer(np.ones_like(u), np.cos(v)) + h
+            ax.plot_surface(x, y, z, color="pink", alpha=0.2)
     def _init_lines(self, ax):
         return [ax.plot([], [], [], lw=1)[0] for _ in range(self.simulation.number_of_sperm)]
 

@@ -1,57 +1,148 @@
-diff --git a/tools/draw_medium_egg.py b/tools/draw_medium_egg.py
-index 4da466d6361a10fcc98b81beec0cdf3e3eb08266..5ee0d31dd89d52e5a3a4815ee9ca7c7139698f80 100644
---- a/tools/draw_medium_egg.py
-+++ b/tools/draw_medium_egg.py
-@@ -27,35 +27,50 @@ def draw_medium(ax, constants):
-         y = r * np.sin(u) * np.sin(v)
-         z = r * np.cos(v)
-         ax.plot_surface(x, y, z, color='pink', alpha=0.2)
-     # 他の shape（cube, spotなど）を描画したい場合はここに追記
+diff --git a/spermsim/main.py b/spermsim/main.py
+index cebecba02002753cd243dd5d24f0ebd53696aa47..5262a73a0cfd160041a056894756bf5cb237829b 100644
+--- a/spermsim/main.py
++++ b/spermsim/main.py
+@@ -1072,59 +1072,52 @@ class SpermSimulation:
+         for j in range(self.number_of_sperm):
+             self.vec_colors[j] = base_colors[j % len(base_colors)]
+ 
      
- def draw_egg_2d(ax, egg_center, egg_radius, plane='xy'):
-     from matplotlib.patches import Circle 
-     """
-     2D平面上に卵子（円）を描画する
+     def initial_vec(self, j, constants):
+         shape = self.constants['shape']
+         analysis_type = self.constants.get('analysis_type', 'simulation')
  
-     Parameters:
-         ax: matplotlib.axes.Axes
-         egg_center: 卵子中心の3D座標 [x, y, z]
-         egg_radius: 半径（mm単位）
-         plane: 'xy', 'xz', 'yz' のいずれか（描画平面）
-     """
-     if plane == 'xy':
-         cx, cy = egg_center[0], egg_center[1]
-     elif plane == 'xz':
-         cx, cy = egg_center[0], egg_center[2]
-     elif plane == 'yz':
-         cx, cy = egg_center[1], egg_center[2]
-     else:
-         raise ValueError(f"Unsupported plane: {plane}. Use 'xy', 'xz', or 'yz'.")
+         # --- unified base_position for all modes ---
+         base_position = self.shape.initial_position()
  
--    egg_patch = Circle((cx, cy), egg_radius, facecolor='yellow', edgecolor='gray', alpha=0.6)
-+    egg_patch = Circle(
-+        (cx, cy),
-+        egg_radius,
-+        facecolor="yellow",
-+        edgecolor="gray",
-+        linewidth=0.8,
-+        alpha=0.6,
-+    )
-     ax.add_patch(egg_patch)
-     
+         if "number_of_sperm" not in self.constants:
+             volume = float(self.constants['volume'])
+             sperm_conc = float(self.constants['sperm_conc'])
+             self.constants['number_of_sperm'] = int(sperm_conc * volume / 1000)
  
- def draw_egg_3d(ax, egg_center, radius):
-     u, v = np.mgrid[0:2*np.pi:20j, 0:np.pi:10j]
-     x = radius * np.cos(u) * np.sin(v) + egg_center[0]
-     y = radius * np.sin(u) * np.sin(v) + egg_center[1]
-     z = radius * np.cos(v) + egg_center[2]
--    ax.plot_surface(x, y, z, color='gold', alpha=0.8)
-+    ax.plot_surface(
-+        x,
-+        y,
-+        z,
-+        color="gold",
-+        alpha=0.8,
-+        edgecolor="gray",
-+        linewidth=0.5,
-+    )
+         if "number_of_steps" not in self.constants:
+             sim_min = float(self.constants['sim_min'])
+             sample_rate = float(self.constants['sample_rate_hz'])
+             steps = int(sim_min * 60 * sample_rate)
+             self.constants['number_of_steps'] = steps
+ 
+    
+         if analysis_type == "reflection":
+             if shape == "spot":
+-                spot_bottom_r = self.constants.get('spot_bottom_r', 1.0)
+-                spot_bottom_height = self.constants.get('spot_bottom_height', 0.5)
+-                base_position = np.array([
+-                    spot_bottom_r - constants['step_length'] * 1.5,
+-                    0.001,
+-                    spot_bottom_height
+-                ])
+-                direction_vec = (constants['step_length'], 0, 0)
+-                temp_position = base_position + direction_vec
++                temp_position = base_position + np.array([constants['step_length'], 0, 0])
++                IO_status = self.shape.io_check(base_position, temp_position)
+ 
+             elif shape == "cube":
+                 temp_position = base_position + np.array([constants['step_length'], 0, 0])
+                 IO_status, vertex_point = self.shape.io_check(temp_position)
+ 
+             elif shape == "drop":
+                 temp_position = base_position + np.array([constants['step_length'], 0, 0])
+                 IO_status = self.shape.io_check(temp_position, self.constants['initial_stick'])
+                 vertex_point = None
+ 
+             else:
+                 raise ValueError(f"Unsupported shape for reflection: {shape}")
+ 
+             local_stick = self.constants['initial_stick']
+             if IO_status in [IOStatus.TEMP_ON_SURFACE, IOStatus.TEMP_ON_EDGE]:
+                 last_vec = temp_position - base_position
+                 if np.linalg.norm(last_vec) < self.constants['limit']:
+                     last_vec = np.array([constants['step_length'], 0.0, 0.0])
+                 inward_dir = face_and_inward_dir(
+                     temp_position,
+                     base_position,
+                     last_vec,
+                     IO_status,
+                     local_stick,
+                     constants=self.constants
+diff --git a/spermsim/main.py b/spermsim/main.py
+index cebecba02002753cd243dd5d24f0ebd53696aa47..5262a73a0cfd160041a056894756bf5cb237829b 100644
+--- a/spermsim/main.py
++++ b/spermsim/main.py
+@@ -1497,62 +1490,76 @@ class SpermTrajectoryVisualizer:
+         ax.set_xlim(x_min, x_max)
+         ax.set_ylim(y_min, y_max)
+         ax.set_zlim(z_min, z_max)
+         ax.set_xlabel("X")
+         ax.set_ylabel("Y")
+         ax.set_zlabel("Z")
+         return fig, ax
+ 
+     def _compute_egg_surface(self):
+         u = np.linspace(0, 2 * np.pi, 50)
+         v = np.linspace(0, np.pi, 50)
+         ex = self.egg_center[0] + self.egg_radius * np.outer(np.cos(u), np.sin(v))
+         ey = self.egg_center[1] + self.egg_radius * np.outer(np.sin(u), np.sin(v))
+         ez = self.egg_center[2] + self.egg_radius * np.outer(np.ones_like(u), np.cos(v))
+         return ex, ey, ez
+ 
+     def _draw_medium(self, ax):
+         shape = self.constants.get("shape", "spot")
+         if shape == "drop":
+             r = self.constants["drop_r"]
+             u = np.linspace(0, 2 * np.pi, 40)
+             v = np.linspace(0, np.pi, 40)
+             x = r * np.outer(np.cos(u), np.sin(v))
+             y = r * np.outer(np.sin(u), np.sin(v))
+             z = r * np.outer(np.ones_like(u), np.cos(v))
++            ax.plot_surface(x, y, z, color="pink", alpha=0.2)
+         elif shape == "cube":
+             edge = self.constants["edge_um"]
+             r = edge / 2
+-            for s, e in zip([-r, r], [r, -r]):
++            corners = [
++                (-r, -r, -r), (r, -r, -r), (r, r, -r), (-r, r, -r),
++                (-r, -r, r),  (r, -r, r),  (r, r, r),  (-r, r, r)
++            ]
++            edges = [
++                (0,1), (1,2), (2,3), (3,0),
++                (4,5), (5,6), (6,7), (7,4),
++                (0,4), (1,5), (2,6), (3,7)
++            ]
++            for s_idx, e_idx in edges:
++                s = corners[s_idx]
++                e = corners[e_idx]
++                ax.plot([s[0], e[0]], [s[1], e[1]], [s[2], e[2]], color="pink", alpha=0.4)
+         elif shape == "spot":
+             spot_r = self.constants.get("spot_r", 1.0)
+             h = self.constants.get("spot_bottom_height", 0.0)
+             u = np.linspace(0, 2 * np.pi, 40)
+             v = np.linspace(0, np.pi / 2, 40)
+             x = spot_r * np.outer(np.cos(u), np.sin(v))
+             y = spot_r * np.outer(np.sin(u), np.sin(v))
+             z = spot_r * np.outer(np.ones_like(u), np.cos(v)) + h
++            ax.plot_surface(x, y, z, color="pink", alpha=0.2)
+     def _init_lines(self, ax):
+         return [ax.plot([], [], [], lw=1)[0] for _ in range(self.simulation.number_of_sperm)]
+ 
+     def _init_func(self, lines):
+         def init():
+             for line in lines:
+                 line.set_data([], [])
+                 line.set_3d_properties([])
+             return lines
+         return init
+ 
+     def _animate_func(self, lines):
+         def animate(i):
+             for j, line in enumerate(lines):
+                 base = self.simulation.trajectory[j, i]
+                 end = self.simulation.trajectory[j, i + 1]
+                 line.set_data([base[0], end[0]], [base[1], end[1]])
+                 line.set_3d_properties([base[2], end[2]])
+                 line.set_color(self.simulation.vec_colors[j, i])
+                 line.set_linewidth(self.simulation.vec_thickness_3d[j, i])
+             return lines
+         return animate
+ 
+     def animate_trajectory(self):
+         if self.constants.get("make_movie", "no").lower() != "yes":
