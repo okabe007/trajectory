@@ -1,0 +1,58 @@
+diff --git a/core/engine.py b/core/engine.py
+index 75b45d96166a98bda1c643748d8770810c389587..153ca310a87563493821bfe46a5476e9fd473c55 100644
+--- a/core/engine.py
++++ b/core/engine.py
+@@ -175,51 +175,52 @@ class SpermSimulation:
+                 pos = candidate
+ 
+         return trajectory
+ 
+ 
+ 
+ 
+     def run(self, constants: dict, result_dir: str, save_name: str, save_flag: bool = False):
+         # 派生変数の再計算（引数が更新されていた場合に備えて）
+         constants = calculate_derived_constants(constants)
+         print("[DEBUG] run() 開始: constants =", constants)
+ 
+         # self.trajectory をこの中で生成するようにしておくこと
+         self.trajectory = self.simulate(constants)  # ← simulate() は self 内部で定義されている仮定
+ 
+         # 保存オプションが有効な場合
+         if save_flag:
+             save_path = os.path.join(result_dir, save_name + ".npy")
+             np.save(save_path, self.trajectory)
+             print(f"[DEBUG] 軌跡データを {save_path} に保存しました")
+ 
+         # 表示モードの形式を整える（タプルやリストのまま来ることがある）
+         display_mode = constants.get("display_mode", "2D")
+         if isinstance(display_mode, (list, tuple)):
+             display_mode = display_mode[0]
+-        display_mode = str(display_mode).strip().lower()
++        # 余計な記号を取り除いて小文字化する
++        display_mode = str(display_mode).strip(" ()'\" ,").lower()
+ 
+         # 描画
+         if display_mode == "2d":
+             plot_2d_trajectories(self.trajectory, constants)
+         elif display_mode == "3d":
+             plot_3d_trajectories(self.trajectory, constants)
+         elif display_mode == "movie":
+             draw_3d_movies(self.trajectory, constants)
+         else:
+             print(f"[WARNING] 未対応の表示モード: {display_mode}")
+ 
+     def is_vector_meeting_egg(self, base_position, temp_position, egg_center, gamete_r):
+         vector = temp_position - base_position
+         # if LA.norm(vector) < 1e-9:
+         #     raise RuntimeError("zzz")
+         distance_base = LA.norm(base_position - egg_center)
+         distance_tip = LA.norm(temp_position - egg_center)
+         if distance_base <= gamete_r or distance_tip <= gamete_r:
+             return True
+         f = base_position - egg_center
+         a = vector @ vector
+         b = 2 * (f @ vector)
+         c = f @ f - gamete_r**2
+         discriminant = b**2 - 4*a*c
+         if discriminant < 0:

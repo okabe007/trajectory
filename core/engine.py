@@ -197,7 +197,8 @@ class SpermSimulation:
         display_mode = constants.get("display_mode", "2D")
         if isinstance(display_mode, (list, tuple)):
             display_mode = display_mode[0]
-        display_mode = str(display_mode).strip().lower()
+        # 余計な記号を取り除いて小文字化する
+        display_mode = str(display_mode).strip(" ()'\" ,").lower()
 
         # 描画
         if display_mode == "2d":
