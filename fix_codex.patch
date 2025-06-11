@@ -1,74 +1,43 @@
-diff --git a/tools/geometry.py b/tools/geometry.py
-index 8cf5862bcb15b347454560116fd8fabaeaa0a89d..fa090571fd208bd8c2d01e057a4469119645bf3c 100644
---- a/tools/geometry.py
-+++ b/tools/geometry.py
-@@ -126,62 +126,64 @@ class BaseShape:
-         raise NotImplementedError
+diff --git a/tools/ini_handler.py b/tools/ini_handler.py
+index e7b570b8c25051332a3f3d791641237cb9e2bd46..b8bbbbafc3ba9fbfffd1dcb278416c1697f58b03 100644
+--- a/tools/ini_handler.py
++++ b/tools/ini_handler.py
+@@ -54,37 +54,37 @@ def load_config(ini_path="sperm_config.ini"):
+             if k in ["vsl", "spot_angle", "gamete_r", "sperm_conc", "vol", "sample_rate_hz", "sim_min"]:
+                 values[k] = float(raw)
+             elif k == "sim_repeat":
+                 values[k] = int(float(raw))
+             elif k == "display_mode":
+                 values[k] = [v for v in raw.split(",") if v]
+             else:
+                 values[k] = raw
+         except Exception:
+             values[k] = raw
+     return values
  
  
- class CubeShape(BaseShape):
-     """
-     立方体形状
-     - constants に
-         • "vol"      : 体積 [µL]          (従来)
-         • "vol_um3"  : 体積 [µm³] ←★追加
-       のどちらかが入っていれば初期化できます。
-     - 計算した一辺長 edge_um, limits は self.constants に追記。
-     """
+ def save_config(values: dict) -> None:
+     import configparser
+     import os
  
-     def __init__(self, constants: Dict[str, float]):
-         super().__init__(constants)
+     CONFIG_PATH = os.path.join(os.path.dirname(__file__), "..", "sperm_config.ini")
+     cfg = configparser.ConfigParser()
+     ordered = {}
  
-         # ------------------ 追加：µm³ 指定をサポート ------------------
-         if "vol_um3" in self.constants and "vol" not in self.constants:
-             # µm³  →  µL  (1 µm³ = 1e-9 µL)
-             self.constants["vol"] = float(self.constants["vol_um3"]) * 1e-9
-         # -------------------------------------------------------------
+     for k in PARAM_ORDER:
+         if k in values:
+             v = values[k]
+             if k == "gamete_r":
+-                v = float(v) * 1000.0  # mm → μm
++                v = float(v)
+             if k == "display_mode":
+                 if isinstance(v, (list, tuple)):
+                     v = v[0]
+                 v = str(v).strip()
+             ordered[k] = str(v)
  
-         if "vol" not in self.constants:
-             raise ValueError("CubeShape: constants に 'vol' か 'vol_um3' が必要です")
+     cfg["parameters"] = ordered
  
--        # ------ 一辺長 edge_um を計算（常に µm 単位） ------
--        vol_um3 = self.constants["vol"] * 1e9        # µm³
--        edge_um = vol_um3 ** (1.0 / 3.0)             # 一辺 [µm]
-+        # ------ 一辺長 edge_mm を計算 ------
-+        vol_mm3 = self.constants["vol"]              # µL = mm³
-+        edge_mm = vol_mm3 ** (1.0 / 3.0)             # 一辺 [mm]
-+        edge_um = edge_mm * 1000.0
-         self.edge_um = edge_um
-+        self.constants["edge"] = edge_mm
+     with open(CONFIG_PATH, "w") as f:
+         cfg.write(f)
  
-         # --- limits の設定 ---
-         # derived_constants.calculate_derived_constants で x_min などが
-         # 既に mm 単位で計算されている場合はそれを尊重する。
-         limit_keys = ["x_min", "x_max", "y_min", "y_max", "z_min", "z_max"]
-         if not all(k in self.constants for k in limit_keys):
--            # 派生値が無い場合のみここで計算する（mm単位に変換）
--            half_mm = edge_um / 2.0 / 1000.0
-+            # 派生値が無い場合のみここで計算する（mm単位）
-+            half_mm = edge_mm / 2.0
-             self.constants.update({
-                 "x_min": -half_mm, "x_max": half_mm,
-                 "y_min": -half_mm, "y_max": half_mm,
-                 "z_min": -half_mm, "z_max": half_mm,
-             })
-         # edge_um は常に保存しておく
-         self.constants["edge_um"] = edge_um
-         # -------------------------------------------------------------
- 
-     # ------------- 以降は Masaru さんの元コードをそのまま残す -------------
-     def initial_position(self):
-         x_min, x_max, y_min, y_max, z_min, z_max = self.get_limits()
-         return np.random.uniform([x_min, y_min, z_min], [x_max, y_max, z_max])
- 
-     def io_check(self, point):
-         x_min, x_max, y_min, y_max, z_min, z_max = self.get_limits()
-         eps = 1e-9
-         inside = (x_min < point[0] < x_max) and (y_min < point[1] < y_max) and (z_min < point[2] < z_max)
-         if inside:
-             return IOStatus.INSIDE, None
-         on_edge = (
-             np.isclose([point[0]], [x_min, x_max], atol=eps).any() or
-             np.isclose([point[1]], [y_min, y_max], atol=eps).any() or
-             np.isclose([point[2]], [z_min, z_max], atol=eps).any()
-         )

@@ -76,7 +76,7 @@ def save_config(values: dict) -> None:
         if k in values:
             v = values[k]
             if k == "gamete_r":
-                v = float(v) * 1000.0  # mm → μm
+                v = float(v)
             if k == "display_mode":
                 if isinstance(v, (list, tuple)):
                     v = v[0]
