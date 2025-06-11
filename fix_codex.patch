@@ -1,57 +1,22 @@
-diff --git a/spermsim/main.py b/spermsim/main.py
-index 0b5d1ce1d2bd4efd47df496298993e702fcf5508..cebecba02002753cd243dd5d24f0ebd53696aa47 100644
---- a/spermsim/main.py
-+++ b/spermsim/main.py
-@@ -1857,51 +1857,51 @@ def show_selection_ui(no_gui=False):
-         return load_previous_selection()
-     # --- GUI 起動 ---
-     root = tk.Tk()
-     root.title("シミュレーションのパラメータ選択")
-     root.geometry("600x600")
-     root.attributes("-topmost", True)            
-     root.update()                                
-     canvas = tk.Canvas(root)
-     scrollbar = tk.Scrollbar(root, orient="vertical", command=canvas.yview)
-     scrollable_frame = tk.Frame(canvas)
-     def on_configure(event):
-         canvas.configure(scrollregion=canvas.bbox("all"))
-     scrollable_frame.bind("<Configure>", on_configure)
-     canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-     canvas.configure(yscrollcommand=scrollbar.set)
-     canvas.pack(side="left", fill="both", expand=True)
-     scrollbar.pack(side="right", fill="y")
-     gui_elements = {}
-     frames = {}
-     radio_button_defaults = {
-         "n_repeat_options":               ["1", "2", "3", "4", "5"],
-         "seed_number_options":            ["None", "0", "1","2","3"],
-         "sim_min_options":                ["0.2", "1", "10", "20","60","100"],
-         "sample_rate_hz_options":          ["1", "2", "3", "4"],
-         "spot_angle_options":             ["30", "50","60","70", "90"],
--        "vsl_options":                    ["0.073","0.1", "0.11", "0.12", "0.13", "0.14","0.15"],
-+        "vsl_options":                    ["0.073", "0.09", "0.11", "0.13", "0.15"],
-         "deviation_options":              ["0", "0.2", "0.3","0.4","0.8","1.6", "3.2", "6.4", "12.8"],
-         "stick_sec_options":              ["0", "1", "2", "3", "4","5", "6","7","8"],
-         "egg_localization_options":       ["bottom_center", "center", "bottom_edge"],
-         "analysis_type_options":          ["simulation", "reflection"],
-         "initial_direction_options":      ["right", "left", "up", "down", "random"],
-         "initial_stick_options":   ["0", "1", "10", "20"],
-     }
-     ordered_keys = [
-         ("繰り返し回数 (N Repeat)",             "n_repeat_options"),
-         ("乱数シード (Seed Number)",            "seed_number_options"),
-         ("シミュレーション時間 (Sim Min)",      "sim_min_options"),
-         ("サンプリングレート (Sample Rate Hz)", "sample_rate_hz_options"),
-         ("形状 (Shape)",                        "shapes"),
-         ("Spot角度 (Spot Angle)",              "spot_angle_options"),
-         ("体積 (Volume)",                      "volumes"),
-         ("精子濃度 (Sperm Conc)",              "sperm_concentrations"),
-         ("vsl",                                 "vsl_options"),
-         ("偏差 (Deviation)",                   "deviation_options"),
-         ("Stick_秒数 (Stick Sec)",             "stick_sec_options"),
-         ("卵位置 (Egg Localization)",           "egg_localization_options"),
-         ("Gamete半径 (Gamete R)",              "gamete_r_options"),
-         ("出力設定 (Outputs)",                 "outputs"),
-         ("解析タイプ (Analysis Type)",         "analysis_type_options"),
-         ("初期方向 (Initial Direction)",       "initial_direction_options"),
-         ("初期Stick状態 (Initial Stick)",      "initial_stick_options"),
+diff --git a/spermsim/sperm_config.ini b/spermsim/sperm_config.ini
+index 1e16c3978821ad8f21e13de1fb6a026af2da2394..402ca7962b3682afab0d321a4c1348d695ba07c7 100644
+--- a/spermsim/sperm_config.ini
++++ b/spermsim/sperm_config.ini
+@@ -1,16 +1,16 @@
+ [simulation]
+ shape = drop
+ spot_angle = 50.0
+ vol = 6.25
+ sperm_conc = 1000.0
+-vsl = 130.0
++vsl = 0.13
+ deviation = 0.4
+ surface_time = 2.0
+ egg_localization = bottom_center
+ gamete_r = 0.04
+ sim_min = 0.2
+ sample_rate_hz = 4.0
+ seed_number = 1330890718
+ sim_repeat = 1
+ display_mode = 2D
+ 
