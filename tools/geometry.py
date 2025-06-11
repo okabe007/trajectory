@@ -215,18 +215,18 @@ class DropShape(BaseShape):
 
 class SpotShape(BaseShape):
     def initial_position(self):
-        radius = float(self.constants['spot_r'])  # ✅ spot用
-        spot_angle_rad = np.deg2rad(float(self.constants['spot_angle']))
+        """Return a random point uniformly distributed inside a spherical cap."""
+        radius = float(self.constants['spot_r'])
+        angle_rad = np.deg2rad(float(self.constants['spot_angle']))
+        cos_min = np.cos(angle_rad)
+
         while True:
-            theta = np.random.uniform(0, spot_angle_rad)
-            phi = np.random.uniform(-np.pi, np.pi)
-            r = radius * (np.random.rand() ** (1/3))
-            x = r * np.sin(theta) * np.cos(phi)
-            y = r * np.sin(theta) * np.sin(phi)
-            z = r * np.cos(theta)
-            if z >= radius * np.cos(spot_angle_rad):
-                break
-        return np.array([x, y, z])
+            vec = np.random.normal(size=3)
+            vec /= np.linalg.norm(vec) + 1e-12
+            r = radius * (np.random.rand() ** (1 / 3))
+            point = vec * r
+            if point[2] >= radius * cos_min:
+                return point
 
     def io_check(self, base_point, temp_point=None):
         R = float(self.constants["radius"])
