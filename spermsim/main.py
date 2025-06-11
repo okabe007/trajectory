@@ -1879,7 +1879,7 @@ def show_selection_ui(no_gui=False):
         "sim_min_options":                ["0.2", "1", "10", "20","60","100"],
         "sample_rate_hz_options":          ["1", "2", "3", "4"],
         "spot_angle_options":             ["30", "50","60","70", "90"],
-        "vsl_options":                    ["0.073","0.1", "0.11", "0.12", "0.13", "0.14","0.15"],
+        "vsl_options":                    ["0.073", "0.09", "0.11", "0.13", "0.15"],
         "deviation_options":              ["0", "0.2", "0.3","0.4","0.8","1.6", "3.2", "6.4", "12.8"],
         "stick_sec_options":              ["0", "1", "2", "3", "4","5", "6","7","8"],
         "egg_localization_options":       ["bottom_center", "center", "bottom_edge"],
