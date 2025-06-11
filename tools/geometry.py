@@ -2,6 +2,8 @@ import numpy as np
 from numpy import linalg as LA
 from typing import Dict      # ★ この行を追加
 from typing import Tuple
+from tools.enums import IOStatus as EnumIOStatus
+from tools.io_checks import IO_check_spot
 
 def bend_along_sphere_surface(vec: np.ndarray, normal: np.ndarray, angle_rad: float) -> np.ndarray:
     """
@@ -104,11 +106,6 @@ def _handle_drop_outside(
 
     return vec, base_pos, stick_status
 
-class IOStatus:
-    INSIDE = "inside"
-    TEMP_ON_SURFACE = "temp_on_surface"
-    TEMP_ON_EDGE = "temp_on_edge"
-    OUTSIDE = "outside"
 
 class BaseShape:
     def __init__(self, constants):
@@ -181,15 +178,15 @@ class CubeShape(BaseShape):
         eps = 1e-9
         inside = (x_min < point[0] < x_max) and (y_min < point[1] < y_max) and (z_min < point[2] < z_max)
         if inside:
-            return IOStatus.INSIDE, None
+            return EnumIOStatus.INSIDE, None
         on_edge = (
             np.isclose([point[0]], [x_min, x_max], atol=eps).any() or
             np.isclose([point[1]], [y_min, y_max], atol=eps).any() or
             np.isclose([point[2]], [z_min, z_max], atol=eps).any()
         )
         if on_edge:
-            return IOStatus.TEMP_ON_EDGE, None
-        return IOStatus.OUTSIDE, None
+            return EnumIOStatus.TEMP_ON_EDGE, None
+        return EnumIOStatus.OUTSIDE, None
 
 class DropShape(BaseShape):
     def initial_position(self):
@@ -205,13 +202,13 @@ class DropShape(BaseShape):
     def io_check(self, point, stick_status):
         R = float(self.constants["drop_r"])
         if point[2] < 0:
-            return IOStatus.OUTSIDE
+            return EnumIOStatus.OUTSIDE
         norm = np.linalg.norm(point)
         if norm < R:
-            return IOStatus.INSIDE
+            return EnumIOStatus.INSIDE
         if np.isclose(norm, R, atol=1e-9):
-            return IOStatus.TEMP_ON_SURFACE
-        return IOStatus.OUTSIDE
+            return EnumIOStatus.TEMP_ON_SURFACE
+        return EnumIOStatus.OUTSIDE
 
 class SpotShape(BaseShape):
     def initial_position(self):
@@ -228,16 +225,20 @@ class SpotShape(BaseShape):
             if point[2] >= radius * cos_min:
                 return point
 
-    def io_check(self, base_point, temp_point=None):
-        R = float(self.constants["radius"])
+    def io_check(self, base_point, temp_point=None, prev_stat=None, stick_status=0):
+        """Check I/O status using ``IO_check_spot`` for accurate boundary handling."""
         if temp_point is None:
-            return IOStatus.OUTSIDE
-        norm = np.linalg.norm(temp_point)
-        if norm < R:
-            return IOStatus.INSIDE
-        if np.isclose(norm, R, atol=1e-9):
-            return IOStatus.TEMP_ON_SURFACE
-        return IOStatus.OUTSIDE
+            return EnumIOStatus.OUTSIDE
+
+        # ``IO_check_spot`` performs detailed checks for the spherical cap,
+        # including the bottom plane and rim.
+        return IO_check_spot(
+            base_point,
+            temp_point,
+            self.constants,
+            prev_stat if prev_stat is not None else EnumIOStatus.INSIDE,
+            stick_status,
+        )
 
 class CerosShape(BaseShape):
     def initial_position(self):
@@ -250,12 +251,12 @@ class CerosShape(BaseShape):
         eps = 1e-9
         inside = (x_min < point[0] < x_max) and (y_min < point[1] < y_max) and (z_min < point[2] < z_max)
         if inside:
-            return IOStatus.INSIDE, None
+            return EnumIOStatus.INSIDE, None
         on_edge = (
             np.isclose([point[0]], [x_min, x_max], atol=eps).any() or
             np.isclose([point[1]], [y_min, y_max], atol=eps).any() or
             np.isclose([point[2]], [z_min, z_max], atol=eps).any()
         )
         if on_edge:
-            return IOStatus.TEMP_ON_EDGE, None
-        return IOStatus.OUTSIDE, None
+            return EnumIOStatus.TEMP_ON_EDGE, None
+        return EnumIOStatus.OUTSIDE, None
